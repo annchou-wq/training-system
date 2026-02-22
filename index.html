@@ -1,0 +1,2215 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>企業教育訓練系統</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-hover: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* Login Page */
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+        }
+
+        .login-box {
+            background: var(--bg-card);
+            padding: 3rem;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-box h1 {
+            text-align: center;
+            margin-bottom: 0.5rem;
+            font-size: 1.75rem;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .login-box p {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        /* Dashboard Layout */
+        .dashboard {
+            display: none;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 260px;
+            height: 100vh;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.25rem;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sidebar-header p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-menu li {
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-menu a {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .nav-menu a:hover, .nav-menu a.active {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .nav-menu a.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .nav-section {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 1.5rem 0 0.75rem;
+            padding-left: 1rem;
+        }
+
+        .main-content {
+            margin-left: 260px;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            border-left: 4px solid var(--primary);
+        }
+
+        .stat-card.success { border-left-color: var(--success); }
+        .stat-card.warning { border-left-color: var(--warning); }
+        .stat-card.danger { border-left-color: var(--danger); }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        tr:hover {
+            background: var(--bg-hover);
+        }
+
+        /* Status Badge */
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-success { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .badge-warning { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+        .badge-danger { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .badge-info { background: rgba(37, 99, 235, 0.2); color: #60a5fa; }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 1rem;
+            padding: 2rem;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            font-size: 1.25rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-dark);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: var(--bg-hover);
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            background: rgba(37, 99, 235, 0.1);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .alert-success { background: rgba(16, 185, 129, 0.2); border: 1px solid var(--success); }
+        .alert-danger { background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); }
+        .alert-warning { background: rgba(245, 158, 11, 0.2); border: 1px solid var(--warning); }
+
+        /* User Info */
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-dark);
+            border-radius: 0.5rem;
+            margin-top: auto;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .user-details {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .user-role {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .logout-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            color: var(--danger);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* Page sections */
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* Search & Filter */
+        .toolbar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+        }
+
+        .filter-select {
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-width: 150px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                z-index: 100;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="loginPage" class="login-container">
+        <div class="login-box">
+            <h1>📚 教育訓練系統</h1>
+            <p>企業員工訓練管理平台</p>
+            <div id="loginAlert"></div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>員工編號 / Email</label>
+                    <input type="text" id="loginId" required placeholder="請輸入員工編號或 Email">
+                </div>
+                <div class="form-group">
+                    <label>密碼</label>
+                    <input type="password" id="loginPassword" required placeholder="請輸入密碼">
+                </div>
+                <button type="submit" class="btn btn-primary">登入系統</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>📚 教育訓練系統</h2>
+                <p>Training Management</p>
+            </div>
+            
+            <nav>
+                <ul class="nav-menu">
+                    <li><a href="#" data-page="home" class="active">🏠 首頁總覽</a></li>
+                    <li><a href="#" data-page="my-training">📖 我的訓練</a></li>
+                    <li><a href="#" data-page="my-records">📋 訓練紀錄</a></li>
+                    
+                    <div class="nav-section manager-only hidden">主管功能</div>
+                    <li class="manager-only hidden"><a href="#" data-page="team-progress">👥 部門進度</a></li>
+                    <li class="manager-only hidden"><a href="#" data-page="applications">📝 訓練申請</a></li>
+                    
+                    <div class="nav-section admin-only hidden">管理功能</div>
+                    <li class="admin-only hidden"><a href="#" data-page="employees">👤 員工管理</a></li>
+                    <li class="admin-only hidden"><a href="#" data-page="departments">🏢 部門管理</a></li>
+                    <li class="admin-only hidden"><a href="#" data-page="courses">📚 課程管理</a></li>
+                    <li class="admin-only hidden"><a href="#" data-page="all-records">📊 所有紀錄</a></li>
+                    <li class="admin-only hidden"><a href="#" data-page="settings">⚙️ 系統設定</a></li>
+                    <li class="admin-only hidden"><a href="#" data-page="export">📥 資料匯出</a></li>
+                </ul>
+            </nav>
+
+            <div class="user-info" style="margin-top: 2rem;">
+                <div class="user-avatar" id="userAvatar">A</div>
+                <div class="user-details">
+                    <div class="user-name" id="userName">使用者</div>
+                    <div class="user-role" id="userRole">員工</div>
+                </div>
+                <button class="logout-btn" onclick="logout()" title="登出">🚪</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Home Page -->
+            <div id="page-home" class="page active">
+                <div class="page-header">
+                    <h1>👋 歡迎回來，<span id="welcomeName">使用者</span></h1>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statTotal">0</div>
+                        <div class="stat-label">總課程數</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-value" id="statCompleted">0</div>
+                        <div class="stat-label">已完成</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-value" id="statInProgress">0</div>
+                        <div class="stat-label">進行中</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <div class="stat-value" id="statNotStarted">0</div>
+                        <div class="stat-label">未開始</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">📈 我的學習進度</h3>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                    <p style="margin-top: 0.5rem; color: var(--text-secondary);">
+                        完成率：<span id="progressPercent">0</span>%
+                    </p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">🔔 待辦事項</h3>
+                    </div>
+                    <div id="todoList">
+                        <div class="empty-state">
+                            <p>目前沒有待辦事項</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- My Training Page -->
+            <div id="page-my-training" class="page">
+                <div class="page-header">
+                    <h1>📖 我的訓練課程</h1>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="newbie">🌱 新人訓練</button>
+                    <button class="tab-btn" data-tab="general">📚 一般訓練</button>
+                    <button class="tab-btn" data-tab="manager">👔 主管訓練</button>
+                </div>
+
+                <div id="tab-newbie" class="tab-content active">
+                    <div class="card">
+                        <div id="newbieCourses" class="loading"><div class="spinner"></div></div>
+                    </div>
+                </div>
+
+                <div id="tab-general" class="tab-content">
+                    <div class="card">
+                        <div id="generalCourses" class="loading"><div class="spinner"></div></div>
+                    </div>
+                </div>
+
+                <div id="tab-manager" class="tab-content">
+                    <div class="card">
+                        <div id="managerCourses" class="loading"><div class="spinner"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- My Records Page -->
+            <div id="page-my-records" class="page">
+                <div class="page-header">
+                    <h1>📋 我的訓練紀錄</h1>
+                    <button class="btn btn-secondary" onclick="exportMyRecords()">📥 匯出紀錄</button>
+                </div>
+
+                <div class="card">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>課程名稱</th>
+                                    <th>分類</th>
+                                    <th>狀態</th>
+                                    <th>分數</th>
+                                    <th>完成日期</th>
+                                </tr>
+                            </thead>
+                            <tbody id="myRecordsTable">
+                                <tr><td colspan="5" class="loading"><div class="spinner"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team Progress Page (Manager) -->
+            <div id="page-team-progress" class="page">
+                <div class="page-header">
+                    <h1>👥 部門訓練進度</h1>
+                </div>
+
+                <div class="card">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>員工姓名</th>
+                                    <th>員工編號</th>
+                                    <th>已完成</th>
+                                    <th>進行中</th>
+                                    <th>未開始</th>
+                                    <th>完成率</th>
+                                </tr>
+                            </thead>
+                            <tbody id="teamProgressTable">
+                                <tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Training Applications Page (Manager) -->
+            <div id="page-applications" class="page">
+                <div class="page-header">
+                    <h1>📝 訓練申請審核</h1>
+                </div>
+
+                <div class="card">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>申請人</th>
+                                    <th>課程/訓練名稱</th>
+                                    <th>訓練日期</th>
+                                    <th>申請原因</th>
+                                    <th>狀態</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="applicationsTable">
+                                <tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Employees Page (Admin) -->
+            <div id="page-employees" class="page">
+                <div class="page-header">
+                    <h1>👤 員工管理</h1>
+                    <button class="btn btn-primary" onclick="showAddEmployeeModal()">➕ 新增員工</button>
+                </div>
+
+                <div class="toolbar">
+                    <input type="text" class="search-input" id="employeeSearch" placeholder="搜尋員工姓名或編號...">
+                    <select class="filter-select" id="employeeDeptFilter">
+                        <option value="">全部部門</option>
+                    </select>
+                    <select class="filter-select" id="employeeRoleFilter">
+                        <option value="">全部角色</option>
+                        <option value="admin">管理者</option>
+                        <option value="manager">主管</option>
+                        <option value="employee">員工</option>
+                    </select>
+                </div>
+
+                <div class="card">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>員工編號</th>
+                                    <th>姓名</th>
+                                    <th>Email</th>
+                                    <th>部門</th>
+                                    <th>角色</th>
+                                    <th>狀態</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="employeesTable">
+                                <tr><td colspan="7" class="loading"><div class="spinner"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Departments Page (Admin) -->
+            <div id="page-departments" class="page">
+                <div class="page-header">
+                    <h1>🏢 部門管理</h1>
+                    <button class="btn btn-primary" onclick="showAddDepartmentModal()">➕ 新增部門</button>
+                </div>
+
+                <div class="card">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>部門名稱</th>
+                                    <th>說明</th>
+                                    <th>員工人數</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="departmentsTable">
+                                <tr><td colspan="4" class="loading"><div class="spinner"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Courses Page (Admin) -->
+            <div id="page-courses" class="page">
+                <div class="page-header">
+                    <h1>📚 課程管理</h1>
+                    <button class="btn btn-primary" onclick="showAddCourseModal()">➕ 新增課程</button>
+                </div>
+
+                <div class="toolbar">
+                    <input type="text" class="search-input" id="courseSearch" placeholder="搜尋課程名稱...">
+                    <select class="filter-select" id="courseCategoryFilter">
+                        <option value="">全部分類</option>
+                        <option value="新人訓練">新人訓練</option>
+                        <option value="一般訓練">一般訓練</option>
+                        <option value="主管訓練">主管訓練</option>
+                    </select>
+                </div>
+
+                <div class="card">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>課程名稱</th>
+                                    <th>分類</th>
+                                    <th>時數</th>
+                                    <th>必修</th>
+                                    <th>狀態</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="coursesTable">
+                                <tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- All Records Page (Admin) -->
+            <div id="page-all-records" class="page">
+                <div class="page-header">
+                    <h1>📊 所有訓練紀錄</h1>
+                    <button class="btn btn-secondary" onclick="exportAllRecords()">📥 匯出全部</button>
+                </div>
+
+                <div class="toolbar">
+                    <input type="text" class="search-input" id="recordSearch" placeholder="搜尋員工或課程...">
+                    <select class="filter-select" id="recordStatusFilter">
+                        <option value="">全部狀態</option>
+                        <option value="completed">已完成</option>
+                        <option value="in_progress">進行中</option>
+                        <option value="not_started">未開始</option>
+                        <option value="failed">未通過</option>
+                    </select>
+                </div>
+
+                <div class="card">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>員工姓名</th>
+                                    <th>課程名稱</th>
+                                    <th>分類</th>
+                                    <th>狀態</th>
+                                    <th>分數</th>
+                                    <th>完成日期</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allRecordsTable">
+                                <tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Page (Admin) -->
+            <div id="page-settings" class="page">
+                <div class="page-header">
+                    <h1>⚙️ 系統設定</h1>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" style="margin-bottom: 1.5rem;">🏢 公司資訊</h3>
+                    <form id="companySettingsForm">
+                        <div class="form-group">
+                            <label>公司願景</label>
+                            <textarea id="settingVision" rows="3" placeholder="請輸入公司願景..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>公司使命</label>
+                            <textarea id="settingMission" rows="3" placeholder="請輸入公司使命..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>教育訓練政策</label>
+                            <textarea id="settingPolicy" rows="3" placeholder="請輸入教育訓練政策..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>教育訓練目標</label>
+                            <textarea id="settingGoals" rows="3" placeholder="請輸入教育訓練目標..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">💾 儲存設定</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" style="margin-bottom: 1.5rem;">🔔 提醒設定</h3>
+                    <form id="reminderSettingsForm">
+                        <div class="form-group">
+                            <label>課前提醒天數</label>
+                            <input type="number" id="settingReminderDays" min="1" max="30" value="3">
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="settingAbsence" checked> 啟用缺席提醒
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="settingOverdue" checked> 啟用測驗逾期提醒
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="settingIncomplete" checked> 啟用必修未完成提醒
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary">💾 儲存設定</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Export Page (Admin) -->
+            <div id="page-export" class="page">
+                <div class="page-header">
+                    <h1>📥 資料匯出</h1>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="card" style="cursor: pointer;" onclick="exportData('employees')">
+                        <h3>👤 員工資料</h3>
+                        <p style="color: var(--text-secondary); margin-top: 0.5rem;">匯出所有員工名單</p>
+                    </div>
+                    <div class="card" style="cursor: pointer;" onclick="exportData('courses')">
+                        <h3>📚 課程資料</h3>
+                        <p style="color: var(--text-secondary); margin-top: 0.5rem;">匯出所有課程清單</p>
+                    </div>
+                    <div class="card" style="cursor: pointer;" onclick="exportData('records')">
+                        <h3>📋 訓練紀錄</h3>
+                        <p style="color: var(--text-secondary); margin-top: 0.5rem;">匯出所有訓練紀錄</p>
+                    </div>
+                    <div class="card" style="cursor: pointer;" onclick="exportData('applications')">
+                        <h3>📝 訓練申請</h3>
+                        <p style="color: var(--text-secondary); margin-top: 0.5rem;">匯出所有訓練申請</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Employee Modal -->
+    <div id="employeeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="employeeModalTitle">新增員工</h2>
+                <button class="modal-close" onclick="closeModal('employeeModal')">&times;</button>
+            </div>
+            <form id="employeeForm">
+                <input type="hidden" id="employeeEditId">
+                <div class="form-group">
+                    <label>員工編號 *</label>
+                    <input type="text" id="empId" required placeholder="例如：EMP001">
+                </div>
+                <div class="form-group">
+                    <label>姓名 *</label>
+                    <input type="text" id="empName" required placeholder="請輸入姓名">
+                </div>
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" id="empEmail" required placeholder="請輸入 Email">
+                </div>
+                <div class="form-group">
+                    <label>密碼 *</label>
+                    <input type="password" id="empPassword" placeholder="請輸入密碼">
+                </div>
+                <div class="form-group">
+                    <label>部門</label>
+                    <select id="empDepartment">
+                        <option value="">請選擇部門</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>角色</label>
+                    <select id="empRole">
+                        <option value="employee">員工</option>
+                        <option value="manager">主管</option>
+                        <option value="admin">管理者</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>到職日期</label>
+                    <input type="date" id="empHireDate">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('employeeModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">儲存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Department Modal -->
+    <div id="departmentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="departmentModalTitle">新增部門</h2>
+                <button class="modal-close" onclick="closeModal('departmentModal')">&times;</button>
+            </div>
+            <form id="departmentForm">
+                <input type="hidden" id="departmentEditId">
+                <div class="form-group">
+                    <label>部門名稱 *</label>
+                    <input type="text" id="deptName" required placeholder="請輸入部門名稱">
+                </div>
+                <div class="form-group">
+                    <label>說明</label>
+                    <textarea id="deptDescription" rows="3" placeholder="請輸入部門說明"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('departmentModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">儲存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Course Modal -->
+    <div id="courseModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="courseModalTitle">新增課程</h2>
+                <button class="modal-close" onclick="closeModal('courseModal')">&times;</button>
+            </div>
+            <form id="courseForm">
+                <input type="hidden" id="courseEditId">
+                <div class="form-group">
+                    <label>課程名稱 *</label>
+                    <input type="text" id="courseName" required placeholder="請輸入課程名稱">
+                </div>
+                <div class="form-group">
+                    <label>分類 *</label>
+                    <select id="courseCategory" required>
+                        <option value="">請選擇分類</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>課程時數（小時）</label>
+                    <input type="number" id="courseDuration" step="0.5" min="0" placeholder="例如：2">
+                </div>
+                <div class="form-group">
+                    <label>及格分數</label>
+                    <input type="number" id="coursePassingScore" min="0" max="100" value="60">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="courseRequired"> 必修課程
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>課程說明</label>
+                    <textarea id="courseDescription" rows="3" placeholder="請輸入課程說明"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>課程內容/教材連結</label>
+                    <textarea id="courseContent" rows="3" placeholder="請輸入課程內容或教材連結"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('courseModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">儲存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Course Detail Modal -->
+    <div id="courseDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="courseDetailTitle">課程詳情</h2>
+                <button class="modal-close" onclick="closeModal('courseDetailModal')">&times;</button>
+            </div>
+            <div id="courseDetailContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('courseDetailModal')">關閉</button>
+                <button type="button" class="btn btn-primary" id="startCourseBtn" onclick="startCourse()">開始課程</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================
+        // Supabase 設定
+        // ========================================
+        const SUPABASE_URL = 'https://bhrinphpabcfccvotjrp.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJocmlucGhwYWJjZmNjdm90anJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3NTE0MTUsImV4cCI6MjA4NzMyNzQxNX0.BvpIHU0ZY6OLSdIrHrBFKi-WeYYgGdVKDoaadjDezJM';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // ========================================
+        // 全域變數
+        // ========================================
+        let currentUser = null;
+        let departments = [];
+        let categories = [];
+
+        // ========================================
+        // 初始化
+        // ========================================
+        document.addEventListener('DOMContentLoaded', () => {
+            // 檢查是否已登入
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                showDashboard();
+            }
+
+            // 設定登入表單
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+
+            // 設定導覽
+            document.querySelectorAll('.nav-menu a').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const page = link.dataset.page;
+                    navigateTo(page);
+                });
+            });
+
+            // 設定 Tab 切換
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tab = btn.dataset.tab;
+                    switchTab(tab);
+                });
+            });
+
+            // 設定表單
+            document.getElementById('employeeForm').addEventListener('submit', handleEmployeeSubmit);
+            document.getElementById('departmentForm').addEventListener('submit', handleDepartmentSubmit);
+            document.getElementById('courseForm').addEventListener('submit', handleCourseSubmit);
+            document.getElementById('companySettingsForm').addEventListener('submit', handleCompanySettings);
+            document.getElementById('reminderSettingsForm').addEventListener('submit', handleReminderSettings);
+        });
+
+        // ========================================
+        // 登入/登出
+        // ========================================
+        async function handleLogin(e) {
+            e.preventDefault();
+            const loginId = document.getElementById('loginId').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const { data, error } = await supabase
+                    .from('employees')
+                    .select('*, departments(name)')
+                    .or(`employee_id.eq.${loginId},email.eq.${loginId}`)
+                    .eq('password_hash', password)
+                    .eq('is_active', true)
+                    .single();
+
+                if (error || !data) {
+                    showAlert('loginAlert', '登入失敗：帳號或密碼錯誤', 'danger');
+                    return;
+                }
+
+                currentUser = data;
+                localStorage.setItem('currentUser', JSON.stringify(data));
+                showDashboard();
+            } catch (err) {
+                showAlert('loginAlert', '登入失敗：' + err.message, 'danger');
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('currentUser');
+            document.getElementById('loginPage').style.display = 'flex';
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('loginForm').reset();
+        }
+
+        function showDashboard() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+
+            // 更新使用者資訊
+            document.getElementById('userName').textContent = currentUser.name;
+            document.getElementById('userAvatar').textContent = currentUser.name.charAt(0);
+            document.getElementById('welcomeName').textContent = currentUser.name;
+
+            const roleNames = { admin: '管理者', manager: '主管', employee: '員工' };
+            document.getElementById('userRole').textContent = roleNames[currentUser.role] || '員工';
+
+            // 根據角色顯示選單
+            if (currentUser.role === 'admin') {
+                document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+                document.querySelectorAll('.manager-only').forEach(el => el.classList.remove('hidden'));
+            } else if (currentUser.role === 'manager') {
+                document.querySelectorAll('.manager-only').forEach(el => el.classList.remove('hidden'));
+            }
+
+            // 載入資料
+            loadDashboardData();
+            loadDepartments();
+            loadCategories();
+        }
+
+        // ========================================
+        // 頁面導覽
+        // ========================================
+        function navigateTo(page) {
+            // 更新選單狀態
+            document.querySelectorAll('.nav-menu a').forEach(link => {
+                link.classList.remove('active');
+                if (link.dataset.page === page) {
+                    link.classList.add('active');
+                }
+            });
+
+            // 顯示對應頁面
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(`page-${page}`).classList.add('active');
+
+            // 載入頁面資料
+            loadPageData(page);
+        }
+
+        async function loadPageData(page) {
+            switch (page) {
+                case 'home':
+                    loadDashboardData();
+                    break;
+                case 'my-training':
+                    loadMyCourses();
+                    break;
+                case 'my-records':
+                    loadMyRecords();
+                    break;
+                case 'team-progress':
+                    loadTeamProgress();
+                    break;
+                case 'applications':
+                    loadApplications();
+                    break;
+                case 'employees':
+                    loadEmployees();
+                    break;
+                case 'departments':
+                    loadDepartmentsTable();
+                    break;
+                case 'courses':
+                    loadCourses();
+                    break;
+                case 'all-records':
+                    loadAllRecords();
+                    break;
+                case 'settings':
+                    loadSettings();
+                    break;
+            }
+        }
+
+        // ========================================
+        // Tab 切換
+        // ========================================
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tab);
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.toggle('active', content.id === `tab-${tab}`);
+            });
+        }
+
+        // ========================================
+        // 資料載入
+        // ========================================
+        async function loadDashboardData() {
+            try {
+                const { data: records } = await supabase
+                    .from('training_records')
+                    .select('*')
+                    .eq('employee_id', currentUser.id);
+
+                const { data: courses } = await supabase
+                    .from('courses')
+                    .select('*')
+                    .eq('is_active', true);
+
+                const total = courses?.length || 0;
+                const completed = records?.filter(r => r.status === 'completed').length || 0;
+                const inProgress = records?.filter(r => r.status === 'in_progress').length || 0;
+                const notStarted = total - completed - inProgress;
+
+                document.getElementById('statTotal').textContent = total;
+                document.getElementById('statCompleted').textContent = completed;
+                document.getElementById('statInProgress').textContent = inProgress;
+                document.getElementById('statNotStarted').textContent = notStarted > 0 ? notStarted : 0;
+
+                const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+                document.getElementById('progressFill').style.width = progress + '%';
+                document.getElementById('progressPercent').textContent = progress;
+            } catch (err) {
+                console.error('Error loading dashboard:', err);
+            }
+        }
+
+        async function loadDepartments() {
+            const { data } = await supabase.from('departments').select('*').order('name');
+            departments = data || [];
+
+            // 更新下拉選單
+            const selects = ['empDepartment', 'employeeDeptFilter'];
+            selects.forEach(id => {
+                const select = document.getElementById(id);
+                if (select) {
+                    const currentValue = select.value;
+                    select.innerHTML = '<option value="">請選擇部門</option>';
+                    departments.forEach(d => {
+                        select.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+                    });
+                    select.value = currentValue;
+                }
+            });
+        }
+
+        async function loadCategories() {
+            const { data } = await supabase.from('course_categories').select('*').order('sort_order');
+            categories = data || [];
+
+            const select = document.getElementById('courseCategory');
+            if (select) {
+                select.innerHTML = '<option value="">請選擇分類</option>';
+                categories.forEach(c => {
+                    select.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+                });
+            }
+        }
+
+        async function loadMyCourses() {
+            const { data: courses } = await supabase
+                .from('courses')
+                .select('*, course_categories(name)')
+                .eq('is_active', true);
+
+            const { data: records } = await supabase
+                .from('training_records')
+                .select('*')
+                .eq('employee_id', currentUser.id);
+
+            const recordMap = {};
+            records?.forEach(r => recordMap[r.course_id] = r);
+
+            const coursesByCategory = {
+                '新人訓練': [],
+                '一般訓練': [],
+                '主管訓練': []
+            };
+
+            courses?.forEach(course => {
+                const categoryName = course.course_categories?.name || '一般訓練';
+                if (coursesByCategory[categoryName]) {
+                    coursesByCategory[categoryName].push({
+                        ...course,
+                        record: recordMap[course.id]
+                    });
+                }
+            });
+
+            ['newbie', 'general', 'manager'].forEach((tab, index) => {
+                const categoryNames = ['新人訓練', '一般訓練', '主管訓練'];
+                const container = document.getElementById(`${tab}Courses`);
+                const categoryCourses = coursesByCategory[categoryNames[index]];
+
+                if (categoryCourses.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><p>此分類目前沒有課程</p></div>';
+                } else {
+                    container.innerHTML = categoryCourses.map(course => {
+                        const record = course.record;
+                        const status = record?.status || 'not_started';
+                        const statusLabels = {
+                            'not_started': '未開始',
+                            'in_progress': '進行中',
+                            'completed': '已完成',
+                            'failed': '未通過'
+                        };
+                        const statusClasses = {
+                            'not_started': 'info',
+                            'in_progress': 'warning',
+                            'completed': 'success',
+                            'failed': 'danger'
+                        };
+
+                        return `
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border);">
+                                <div>
+                                    <h4 style="margin-bottom: 0.25rem;">${course.title}</h4>
+                                    <p style="color: var(--text-secondary); font-size: 0.875rem;">
+                                        ${course.duration_hours ? course.duration_hours + ' 小時' : ''} 
+                                        ${course.is_required ? '<span class="badge badge-danger">必修</span>' : ''}
+                                    </p>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <span class="badge badge-${statusClasses[status]}">${statusLabels[status]}</span>
+                                    <button class="btn btn-sm btn-secondary" onclick="showCourseDetail('${course.id}')">查看</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            });
+        }
+
+        async function loadMyRecords() {
+            const { data } = await supabase
+                .from('training_records')
+                .select('*, courses(title, course_categories(name))')
+                .eq('employee_id', currentUser.id)
+                .order('updated_at', { ascending: false });
+
+            const tbody = document.getElementById('myRecordsTable');
+            
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">目前沒有訓練紀錄</td></tr>';
+                return;
+            }
+
+            const statusLabels = { 'not_started': '未開始', 'in_progress': '進行中', 'completed': '已完成', 'failed': '未通過' };
+            const statusClasses = { 'not_started': 'info', 'in_progress': 'warning', 'completed': 'success', 'failed': 'danger' };
+
+            tbody.innerHTML = data.map(record => `
+                <tr>
+                    <td>${record.courses?.title || '-'}</td>
+                    <td>${record.courses?.course_categories?.name || '-'}</td>
+                    <td><span class="badge badge-${statusClasses[record.status]}">${statusLabels[record.status]}</span></td>
+                    <td>${record.score !== null ? record.score + ' 分' : '-'}</td>
+                    <td>${record.completion_date ? new Date(record.completion_date).toLocaleDateString() : '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadTeamProgress() {
+            if (currentUser.role !== 'manager' && currentUser.role !== 'admin') return;
+
+            let query = supabase
+                .from('employees')
+                .select('*, training_records(*)')
+                .eq('is_active', true);
+
+            if (currentUser.role === 'manager') {
+                query = query.eq('department_id', currentUser.department_id);
+            }
+
+            const { data: employees } = await query;
+            const { data: courses } = await supabase.from('courses').select('*').eq('is_active', true);
+            const totalCourses = courses?.length || 0;
+
+            const tbody = document.getElementById('teamProgressTable');
+
+            if (!employees || employees.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">沒有員工資料</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = employees.map(emp => {
+                const records = emp.training_records || [];
+                const completed = records.filter(r => r.status === 'completed').length;
+                const inProgress = records.filter(r => r.status === 'in_progress').length;
+                const notStarted = totalCourses - completed - inProgress;
+                const progress = totalCourses > 0 ? Math.round((completed / totalCourses) * 100) : 0;
+
+                return `
+                    <tr>
+                        <td>${emp.name}</td>
+                        <td>${emp.employee_id}</td>
+                        <td>${completed}</td>
+                        <td>${inProgress}</td>
+                        <td>${notStarted > 0 ? notStarted : 0}</td>
+                        <td>
+                            <div class="progress-bar" style="width: 100px; display: inline-block; vertical-align: middle;">
+                                <div class="progress-fill" style="width: ${progress}%"></div>
+                            </div>
+                            <span style="margin-left: 0.5rem;">${progress}%</span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function loadApplications() {
+            let query = supabase
+                .from('training_applications')
+                .select('*, employees(name), courses(title)')
+                .order('created_at', { ascending: false });
+
+            if (currentUser.role === 'manager') {
+                const { data: teamMembers } = await supabase
+                    .from('employees')
+                    .select('id')
+                    .eq('department_id', currentUser.department_id);
+                
+                const teamIds = teamMembers?.map(m => m.id) || [];
+                query = query.in('employee_id', teamIds);
+            }
+
+            const { data } = await query;
+            const tbody = document.getElementById('applicationsTable');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">沒有待審核的申請</td></tr>';
+                return;
+            }
+
+            const statusLabels = { 'pending': '待審核', 'approved': '已核准', 'rejected': '已駁回' };
+            const statusClasses = { 'pending': 'warning', 'approved': 'success', 'rejected': 'danger' };
+
+            tbody.innerHTML = data.map(app => `
+                <tr>
+                    <td>${app.employees?.name || '-'}</td>
+                    <td>${app.courses?.title || app.external_course_name || '-'}</td>
+                    <td>${app.training_date ? new Date(app.training_date).toLocaleDateString() : '-'}</td>
+                    <td>${app.reason || '-'}</td>
+                    <td><span class="badge badge-${statusClasses[app.status]}">${statusLabels[app.status]}</span></td>
+                    <td>
+                        ${app.status === 'pending' ? `
+                            <button class="btn btn-sm btn-success" onclick="approveApplication('${app.id}')">核准</button>
+                            <button class="btn btn-sm btn-danger" onclick="rejectApplication('${app.id}')">駁回</button>
+                        ` : '-'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadEmployees() {
+            const { data } = await supabase
+                .from('employees')
+                .select('*, departments(name)')
+                .order('employee_id');
+
+            const tbody = document.getElementById('employeesTable');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有員工資料</td></tr>';
+                return;
+            }
+
+            const roleLabels = { 'admin': '管理者', 'manager': '主管', 'employee': '員工' };
+
+            tbody.innerHTML = data.map(emp => `
+                <tr>
+                    <td>${emp.employee_id}</td>
+                    <td>${emp.name}</td>
+                    <td>${emp.email}</td>
+                    <td>${emp.departments?.name || '-'}</td>
+                    <td>${roleLabels[emp.role] || '員工'}</td>
+                    <td><span class="badge badge-${emp.is_active ? 'success' : 'danger'}">${emp.is_active ? '啟用' : '停用'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" onclick="editEmployee('${emp.id}')">編輯</button>
+                        <button class="btn btn-sm btn-danger" onclick="toggleEmployeeStatus('${emp.id}', ${!emp.is_active})">${emp.is_active ? '停用' : '啟用'}</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadDepartmentsTable() {
+            const { data } = await supabase
+                .from('departments')
+                .select('*, employees(count)')
+                .order('name');
+
+            const tbody = document.getElementById('departmentsTable');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">沒有部門資料</td></tr>';
+                return;
+            }
+
+            // 取得每個部門的員工數
+            const { data: empCounts } = await supabase
+                .from('employees')
+                .select('department_id')
+                .eq('is_active', true);
+
+            const countMap = {};
+            empCounts?.forEach(e => {
+                countMap[e.department_id] = (countMap[e.department_id] || 0) + 1;
+            });
+
+            tbody.innerHTML = data.map(dept => `
+                <tr>
+                    <td>${dept.name}</td>
+                    <td>${dept.description || '-'}</td>
+                    <td>${countMap[dept.id] || 0} 人</td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" onclick="editDepartment('${dept.id}')">編輯</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteDepartment('${dept.id}')">刪除</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadCourses() {
+            const { data } = await supabase
+                .from('courses')
+                .select('*, course_categories(name)')
+                .order('created_at', { ascending: false });
+
+            const tbody = document.getElementById('coursesTable');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">沒有課程資料</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map(course => `
+                <tr>
+                    <td>${course.title}</td>
+                    <td>${course.course_categories?.name || '-'}</td>
+                    <td>${course.duration_hours ? course.duration_hours + ' 小時' : '-'}</td>
+                    <td>${course.is_required ? '<span class="badge badge-danger">必修</span>' : '<span class="badge badge-info">選修</span>'}</td>
+                    <td><span class="badge badge-${course.is_active ? 'success' : 'danger'}">${course.is_active ? '啟用' : '停用'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" onclick="editCourse('${course.id}')">編輯</button>
+                        <button class="btn btn-sm btn-danger" onclick="toggleCourseStatus('${course.id}', ${!course.is_active})">${course.is_active ? '停用' : '啟用'}</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadAllRecords() {
+            const { data } = await supabase
+                .from('training_records')
+                .select('*, employees(name, employee_id), courses(title, course_categories(name))')
+                .order('updated_at', { ascending: false });
+
+            const tbody = document.getElementById('allRecordsTable');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">沒有訓練紀錄</td></tr>';
+                return;
+            }
+
+            const statusLabels = { 'not_started': '未開始', 'in_progress': '進行中', 'completed': '已完成', 'failed': '未通過' };
+            const statusClasses = { 'not_started': 'info', 'in_progress': 'warning', 'completed': 'success', 'failed': 'danger' };
+
+            tbody.innerHTML = data.map(record => `
+                <tr>
+                    <td>${record.employees?.name || '-'} (${record.employees?.employee_id || ''})</td>
+                    <td>${record.courses?.title || '-'}</td>
+                    <td>${record.courses?.course_categories?.name || '-'}</td>
+                    <td><span class="badge badge-${statusClasses[record.status]}">${statusLabels[record.status]}</span></td>
+                    <td>${record.score !== null ? record.score + ' 分' : '-'}</td>
+                    <td>${record.completion_date ? new Date(record.completion_date).toLocaleDateString() : '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadSettings() {
+            const { data } = await supabase.from('system_settings').select('*');
+            
+            if (data) {
+                data.forEach(setting => {
+                    switch (setting.setting_key) {
+                        case 'company_vision':
+                            document.getElementById('settingVision').value = setting.setting_value || '';
+                            break;
+                        case 'company_mission':
+                            document.getElementById('settingMission').value = setting.setting_value || '';
+                            break;
+                        case 'training_policy':
+                            document.getElementById('settingPolicy').value = setting.setting_value || '';
+                            break;
+                        case 'training_goals':
+                            document.getElementById('settingGoals').value = setting.setting_value || '';
+                            break;
+                        case 'reminder_before_training_days':
+                            document.getElementById('settingReminderDays').value = setting.setting_value || '3';
+                            break;
+                        case 'reminder_absence_enabled':
+                            document.getElementById('settingAbsence').checked = setting.setting_value === 'true';
+                            break;
+                        case 'reminder_overdue_test_enabled':
+                            document.getElementById('settingOverdue').checked = setting.setting_value === 'true';
+                            break;
+                        case 'reminder_incomplete_required_enabled':
+                            document.getElementById('settingIncomplete').checked = setting.setting_value === 'true';
+                            break;
+                    }
+                });
+            }
+        }
+
+        // ========================================
+        // Modal 操作
+        // ========================================
+        function showModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function showAddEmployeeModal() {
+            document.getElementById('employeeModalTitle').textContent = '新增員工';
+            document.getElementById('employeeForm').reset();
+            document.getElementById('employeeEditId').value = '';
+            document.getElementById('empPassword').required = true;
+            showModal('employeeModal');
+        }
+
+        async function editEmployee(id) {
+            const { data } = await supabase.from('employees').select('*').eq('id', id).single();
+            if (data) {
+                document.getElementById('employeeModalTitle').textContent = '編輯員工';
+                document.getElementById('employeeEditId').value = data.id;
+                document.getElementById('empId').value = data.employee_id;
+                document.getElementById('empName').value = data.name;
+                document.getElementById('empEmail').value = data.email;
+                document.getElementById('empPassword').value = '';
+                document.getElementById('empPassword').required = false;
+                document.getElementById('empDepartment').value = data.department_id || '';
+                document.getElementById('empRole').value = data.role;
+                document.getElementById('empHireDate').value = data.hire_date || '';
+                showModal('employeeModal');
+            }
+        }
+
+        function showAddDepartmentModal() {
+            document.getElementById('departmentModalTitle').textContent = '新增部門';
+            document.getElementById('departmentForm').reset();
+            document.getElementById('departmentEditId').value = '';
+            showModal('departmentModal');
+        }
+
+        async function editDepartment(id) {
+            const { data } = await supabase.from('departments').select('*').eq('id', id).single();
+            if (data) {
+                document.getElementById('departmentModalTitle').textContent = '編輯部門';
+                document.getElementById('departmentEditId').value = data.id;
+                document.getElementById('deptName').value = data.name;
+                document.getElementById('deptDescription').value = data.description || '';
+                showModal('departmentModal');
+            }
+        }
+
+        function showAddCourseModal() {
+            document.getElementById('courseModalTitle').textContent = '新增課程';
+            document.getElementById('courseForm').reset();
+            document.getElementById('courseEditId').value = '';
+            showModal('courseModal');
+        }
+
+        async function editCourse(id) {
+            const { data } = await supabase.from('courses').select('*').eq('id', id).single();
+            if (data) {
+                document.getElementById('courseModalTitle').textContent = '編輯課程';
+                document.getElementById('courseEditId').value = data.id;
+                document.getElementById('courseName').value = data.title;
+                document.getElementById('courseCategory').value = data.category_id || '';
+                document.getElementById('courseDuration').value = data.duration_hours || '';
+                document.getElementById('coursePassingScore').value = data.passing_score || 60;
+                document.getElementById('courseRequired').checked = data.is_required;
+                document.getElementById('courseDescription').value = data.description || '';
+                document.getElementById('courseContent').value = data.content || '';
+                showModal('courseModal');
+            }
+        }
+
+        let selectedCourseId = null;
+        async function showCourseDetail(id) {
+            selectedCourseId = id;
+            const { data: course } = await supabase
+                .from('courses')
+                .select('*, course_categories(name)')
+                .eq('id', id)
+                .single();
+
+            if (course) {
+                document.getElementById('courseDetailTitle').textContent = course.title;
+                document.getElementById('courseDetailContent').innerHTML = `
+                    <p><strong>分類：</strong>${course.course_categories?.name || '-'}</p>
+                    <p><strong>時數：</strong>${course.duration_hours ? course.duration_hours + ' 小時' : '-'}</p>
+                    <p><strong>及格分數：</strong>${course.passing_score} 分</p>
+                    <p><strong>必修：</strong>${course.is_required ? '是' : '否'}</p>
+                    <hr style="border-color: var(--border); margin: 1rem 0;">
+                    <p><strong>課程說明：</strong></p>
+                    <p style="color: var(--text-secondary);">${course.description || '無說明'}</p>
+                    ${course.content ? `
+                        <hr style="border-color: var(--border); margin: 1rem 0;">
+                        <p><strong>課程內容：</strong></p>
+                        <p style="color: var(--text-secondary);">${course.content}</p>
+                    ` : ''}
+                `;
+                showModal('courseDetailModal');
+            }
+        }
+
+        async function startCourse() {
+            if (!selectedCourseId) return;
+
+            const { data: existing } = await supabase
+                .from('training_records')
+                .select('*')
+                .eq('employee_id', currentUser.id)
+                .eq('course_id', selectedCourseId)
+                .single();
+
+            if (existing) {
+                if (existing.status === 'completed') {
+                    alert('您已完成此課程！');
+                } else {
+                    await supabase
+                        .from('training_records')
+                        .update({ status: 'in_progress', start_date: new Date().toISOString() })
+                        .eq('id', existing.id);
+                    alert('繼續學習課程！');
+                }
+            } else {
+                await supabase.from('training_records').insert({
+                    employee_id: currentUser.id,
+                    course_id: selectedCourseId,
+                    status: 'in_progress',
+                    start_date: new Date().toISOString()
+                });
+                alert('已開始課程！');
+            }
+
+            closeModal('courseDetailModal');
+            loadMyCourses();
+            loadDashboardData();
+        }
+
+        // ========================================
+        // 表單提交
+        // ========================================
+        async function handleEmployeeSubmit(e) {
+            e.preventDefault();
+            const editId = document.getElementById('employeeEditId').value;
+            const employeeData = {
+                employee_id: document.getElementById('empId').value,
+                name: document.getElementById('empName').value,
+                email: document.getElementById('empEmail').value,
+                department_id: document.getElementById('empDepartment').value || null,
+                role: document.getElementById('empRole').value,
+                hire_date: document.getElementById('empHireDate').value || null
+            };
+
+            const password = document.getElementById('empPassword').value;
+            if (password) {
+                employeeData.password_hash = password;
+            }
+
+            try {
+                if (editId) {
+                    await supabase.from('employees').update(employeeData).eq('id', editId);
+                } else {
+                    await supabase.from('employees').insert(employeeData);
+                }
+                closeModal('employeeModal');
+                loadEmployees();
+            } catch (err) {
+                alert('儲存失敗：' + err.message);
+            }
+        }
+
+        async function handleDepartmentSubmit(e) {
+            e.preventDefault();
+            const editId = document.getElementById('departmentEditId').value;
+            const deptData = {
+                name: document.getElementById('deptName').value,
+                description: document.getElementById('deptDescription').value
+            };
+
+            try {
+                if (editId) {
+                    await supabase.from('departments').update(deptData).eq('id', editId);
+                } else {
+                    await supabase.from('departments').insert(deptData);
+                }
+                closeModal('departmentModal');
+                loadDepartmentsTable();
+                loadDepartments();
+            } catch (err) {
+                alert('儲存失敗：' + err.message);
+            }
+        }
+
+        async function handleCourseSubmit(e) {
+            e.preventDefault();
+            const editId = document.getElementById('courseEditId').value;
+            const courseData = {
+                title: document.getElementById('courseName').value,
+                category_id: document.getElementById('courseCategory').value || null,
+                duration_hours: document.getElementById('courseDuration').value || null,
+                passing_score: document.getElementById('coursePassingScore').value || 60,
+                is_required: document.getElementById('courseRequired').checked,
+                description: document.getElementById('courseDescription').value,
+                content: document.getElementById('courseContent').value,
+                created_by: currentUser.id
+            };
+
+            try {
+                if (editId) {
+                    await supabase.from('courses').update(courseData).eq('id', editId);
+                } else {
+                    await supabase.from('courses').insert(courseData);
+                }
+                closeModal('courseModal');
+                loadCourses();
+            } catch (err) {
+                alert('儲存失敗：' + err.message);
+            }
+        }
+
+        async function handleCompanySettings(e) {
+            e.preventDefault();
+            const settings = [
+                { setting_key: 'company_vision', setting_value: document.getElementById('settingVision').value },
+                { setting_key: 'company_mission', setting_value: document.getElementById('settingMission').value },
+                { setting_key: 'training_policy', setting_value: document.getElementById('settingPolicy').value },
+                { setting_key: 'training_goals', setting_value: document.getElementById('settingGoals').value }
+            ];
+
+            for (const setting of settings) {
+                await supabase.from('system_settings').upsert(setting, { onConflict: 'setting_key' });
+            }
+            alert('公司資訊已儲存！');
+        }
+
+        async function handleReminderSettings(e) {
+            e.preventDefault();
+            const settings = [
+                { setting_key: 'reminder_before_training_days', setting_value: document.getElementById('settingReminderDays').value },
+                { setting_key: 'reminder_absence_enabled', setting_value: document.getElementById('settingAbsence').checked.toString() },
+                { setting_key: 'reminder_overdue_test_enabled', setting_value: document.getElementById('settingOverdue').checked.toString() },
+                { setting_key: 'reminder_incomplete_required_enabled', setting_value: document.getElementById('settingIncomplete').checked.toString() }
+            ];
+
+            for (const setting of settings) {
+                await supabase.from('system_settings').upsert(setting, { onConflict: 'setting_key' });
+            }
+            alert('提醒設定已儲存！');
+        }
+
+        // ========================================
+        // 其他操作
+        // ========================================
+        async function toggleEmployeeStatus(id, status) {
+            if (confirm(`確定要${status ? '啟用' : '停用'}此員工嗎？`)) {
+                await supabase.from('employees').update({ is_active: status }).eq('id', id);
+                loadEmployees();
+            }
+        }
+
+        async function deleteDepartment(id) {
+            if (confirm('確定要刪除此部門嗎？')) {
+                await supabase.from('departments').delete().eq('id', id);
+                loadDepartmentsTable();
+                loadDepartments();
+            }
+        }
+
+        async function toggleCourseStatus(id, status) {
+            if (confirm(`確定要${status ? '啟用' : '停用'}此課程嗎？`)) {
+                await supabase.from('courses').update({ is_active: status }).eq('id', id);
+                loadCourses();
+            }
+        }
+
+        async function approveApplication(id) {
+            await supabase.from('training_applications').update({
+                status: 'approved',
+                approved_by: currentUser.id,
+                approved_at: new Date().toISOString()
+            }).eq('id', id);
+            loadApplications();
+        }
+
+        async function rejectApplication(id) {
+            await supabase.from('training_applications').update({
+                status: 'rejected',
+                approved_by: currentUser.id,
+                approved_at: new Date().toISOString()
+            }).eq('id', id);
+            loadApplications();
+        }
+
+        // ========================================
+        // 匯出功能
+        // ========================================
+        function exportToCSV(data, filename) {
+            if (!data || data.length === 0) {
+                alert('沒有資料可匯出');
+                return;
+            }
+
+            const headers = Object.keys(data[0]);
+            const csvContent = [
+                headers.join(','),
+                ...data.map(row => headers.map(h => {
+                    let val = row[h];
+                    if (typeof val === 'object') val = JSON.stringify(val);
+                    if (typeof val === 'string' && val.includes(',')) val = `"${val}"`;
+                    return val || '';
+                }).join(','))
+            ].join('\n');
+
+            const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename + '_' + new Date().toISOString().split('T')[0] + '.csv';
+            link.click();
+        }
+
+        async function exportMyRecords() {
+            const { data } = await supabase
+                .from('training_records')
+                .select('*, courses(title, course_categories(name))')
+                .eq('employee_id', currentUser.id);
+
+            const exportData = data?.map(r => ({
+                課程名稱: r.courses?.title,
+                分類: r.courses?.course_categories?.name,
+                狀態: r.status,
+                分數: r.score,
+                開始日期: r.start_date,
+                完成日期: r.completion_date
+            }));
+
+            exportToCSV(exportData, '我的訓練紀錄');
+        }
+
+        async function exportAllRecords() {
+            const { data } = await supabase
+                .from('training_records')
+                .select('*, employees(name, employee_id), courses(title, course_categories(name))');
+
+            const exportData = data?.map(r => ({
+                員工姓名: r.employees?.name,
+                員工編號: r.employees?.employee_id,
+                課程名稱: r.courses?.title,
+                分類: r.courses?.course_categories?.name,
+                狀態: r.status,
+                分數: r.score,
+                開始日期: r.start_date,
+                完成日期: r.completion_date
+            }));
+
+            exportToCSV(exportData, '全部訓練紀錄');
+        }
+
+        async function exportData(type) {
+            let data, filename;
+
+            switch (type) {
+                case 'employees':
+                    const { data: empData } = await supabase.from('employees').select('*, departments(name)');
+                    data = empData?.map(e => ({
+                        員工編號: e.employee_id,
+                        姓名: e.name,
+                        Email: e.email,
+                        部門: e.departments?.name,
+                        角色: e.role,
+                        到職日期: e.hire_date,
+                        狀態: e.is_active ? '啟用' : '停用'
+                    }));
+                    filename = '員工資料';
+                    break;
+
+                case 'courses':
+                    const { data: courseData } = await supabase.from('courses').select('*, course_categories(name)');
+                    data = courseData?.map(c => ({
+                        課程名稱: c.title,
+                        分類: c.course_categories?.name,
+                        時數: c.duration_hours,
+                        及格分數: c.passing_score,
+                        必修: c.is_required ? '是' : '否',
+                        狀態: c.is_active ? '啟用' : '停用'
+                    }));
+                    filename = '課程資料';
+                    break;
+
+                case 'records':
+                    await exportAllRecords();
+                    return;
+
+                case 'applications':
+                    const { data: appData } = await supabase
+                        .from('training_applications')
+                        .select('*, employees(name), courses(title)');
+                    data = appData?.map(a => ({
+                        申請人: a.employees?.name,
+                        課程: a.courses?.title || a.external_course_name,
+                        訓練日期: a.training_date,
+                        原因: a.reason,
+                        狀態: a.status
+                    }));
+                    filename = '訓練申請';
+                    break;
+            }
+
+            exportToCSV(data, filename);
+        }
+
+        // ========================================
+        // 工具函數
+        // ========================================
+        function showAlert(containerId, message, type) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => container.innerHTML = '', 5000);
+        }
+    </script>
+</body>
+</html>
