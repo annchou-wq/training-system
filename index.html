@@ -609,6 +609,7 @@
                     <input type="password" id="loginPassword" required placeholder="請輸入密碼">
                 </div>
                 <button type="submit" class="btn btn-primary">登入系統</button>
+                <p style="text-align: center; margin-top: 1rem;"><a href="#" onclick="showForgotPasswordModal()" style="color: #60a5fa;">忘記密碼？</a></p>
             </form>
         </div>
     </div>
@@ -1072,6 +1073,54 @@
             </form>
         </div>
     </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>🔐 忘記密碼</h2>
+                <button class="modal-close" onclick="closeModal('forgotPasswordModal')">&times;</button>
+            </div>
+            <form id="forgotPasswordForm">
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">請輸入您的員工編號和 Email，系統將重設您的密碼。</p>
+                <div class="form-group">
+                    <label>員工編號</label>
+                    <input type="text" id="forgotEmpId" required placeholder="請輸入員工編號">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="forgotEmail" required placeholder="請輸入 Email">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('forgotPasswordModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">重設密碼</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Force Change Password Modal -->
+    <div id="forceChangePasswordModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>🔑 請設定新密碼</h2>
+            </div>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">首次登入或密碼已重設，請設定您的新密碼。</p>
+            <form id="forceChangePasswordForm">
+                <div class="form-group">
+                    <label>新密碼</label>
+                    <input type="password" id="forceNewPassword" required placeholder="請輸入新密碼（至少4個字元）">
+                </div>
+                <div class="form-group">
+                    <label>確認新密碼</label>
+                    <input type="password" id="forceConfirmPassword" required placeholder="請再次輸入新密碼">
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">確認設定</button>
+                </div>
+            </form>
+        </div>
+    </div>
     
     <!-- Add Employee Modal -->
     <div id="employeeModal" class="modal">
@@ -1293,7 +1342,15 @@
 
                 currentUser = data;
                 localStorage.setItem('currentUser', JSON.stringify(data));
-                showDashboard();
+                
+                // 檢查是否需要強制改密碼（首次登入或密碼被重設）
+                if (currentUser.must_change_password) {
+                    document.getElementById('loginPage').style.display = 'none';
+                    document.getElementById('dashboard').style.display = 'block';
+                    showModal('forceChangePasswordModal');
+                } else {
+                    showDashboard();
+                }
             } catch (err) {
                 showAlert('loginAlert', '登入失敗：' + err.message, 'danger');
             }
@@ -2277,6 +2334,92 @@
                 closeModal('changePasswordModal');
             } catch (err) {
                 alert('密碼修改失敗：' + err.message);
+            }
+        });
+
+        // 忘記密碼功能
+        function showForgotPasswordModal() {
+            document.getElementById('forgotPasswordForm').reset();
+            showModal('forgotPasswordModal');
+        }
+        
+        document.getElementById('forgotPasswordForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const empId = document.getElementById('forgotEmpId').value;
+            const email = document.getElementById('forgotEmail').value;
+            
+            try {
+                // 驗證員工編號和 Email 是否匹配
+                const { data, error } = await supabase
+                    .from('employees')
+                    .select('*')
+                    .eq('employee_id', empId)
+                    .eq('email', email)
+                    .eq('is_active', true)
+                    .single();
+                
+                if (error || !data) {
+                    alert('找不到符合的帳號，請確認員工編號和 Email 是否正確。');
+                    return;
+                }
+                
+                // 重設密碼為預設值，並標記需要強制改密碼
+                const defaultPassword = empId + '123'; // 預設密碼：員工編號 + 123
+                const { error: updateError } = await supabase
+                    .from('employees')
+                    .update({ 
+                        password_hash: defaultPassword,
+                        must_change_password: true 
+                    })
+                    .eq('id', data.id);
+                
+                if (updateError) throw updateError;
+                
+                alert('密碼已重設！\\n\\n您的新密碼是：' + defaultPassword + '\\n\\n請使用新密碼登入，系統會要求您設定新密碼。');
+                closeModal('forgotPasswordModal');
+            } catch (err) {
+                alert('重設密碼失敗：' + err.message);
+            }
+        });
+        
+        // 強制改密碼功能
+        document.getElementById('forceChangePasswordForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const newPwd = document.getElementById('forceNewPassword').value;
+            const confirmPwd = document.getElementById('forceConfirmPassword').value;
+            
+            if (newPwd !== confirmPwd) {
+                alert('新密碼與確認密碼不一致！');
+                return;
+            }
+            
+            if (newPwd.length < 4) {
+                alert('新密碼至少需要 4 個字元！');
+                return;
+            }
+            
+            try {
+                const { error } = await supabase
+                    .from('employees')
+                    .update({ 
+                        password_hash: newPwd,
+                        must_change_password: false 
+                    })
+                    .eq('id', currentUser.id);
+                
+                if (error) throw error;
+                
+                currentUser.password_hash = newPwd;
+                currentUser.must_change_password = false;
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                
+                alert('密碼設定成功！');
+                closeModal('forceChangePasswordModal');
+                showDashboard();
+            } catch (err) {
+                alert('密碼設定失敗：' + err.message);
             }
         });
         
