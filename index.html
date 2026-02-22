@@ -584,11 +584,12 @@
                 var recordMap = {};
                 if (records) records.forEach(function(r) { recordMap[r.course_id] = r; });
                 
-                // 缺席提醒（需補課）
+                // 缺席/請假提醒（需補課）
                 if (attendanceRecords) {
                     attendanceRecords.forEach(function(att) {
-                        if (att.status === 'absent' && att.makeup_required && !att.makeup_completed) {
-                            reminders.push({ type: 'absent', message: '🎬 您缺席了「' + (att.courses ? att.courses.title : '課程') + '」，請觀看影片完成補課' });
+                        if ((att.status === 'absent' || att.status === 'leave') && att.makeup_required && !att.makeup_completed) {
+                            var statusText = att.status === 'absent' ? '缺席' : '請假';
+                            reminders.push({ type: 'absent', message: '🎬 您' + statusText + '了「' + (att.courses ? att.courses.title : '課程') + '」，請觀看影片完成補課' });
                         }
                     });
                 }
@@ -1318,27 +1319,31 @@
                 return;
             }
             
-            var query = supabase.from('attendance_records').select('*, employees(name, employee_id), courses(title)').eq('course_id', courseId);
+            var query = supabase.from('attendance_records').select('*, employees!attendance_records_employee_id_fkey(name, employee_id), courses(title)').eq('course_id', courseId);
             if (dateFilter) query = query.eq('attendance_date', dateFilter);
             
             var { data, error } = await query.order('attendance_date', { ascending: false });
             
-            console.log('Attendance query result:', data, error); // 除錯用
-            
-            if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有出席紀錄' + (error ? '（錯誤：' + error.message + '）' : '') + '</td></tr>';
+            if (error) {
+                console.log('Attendance query error:', error);
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">查詢錯誤：' + error.message + '</td></tr>';
                 return;
             }
             
-            var statusLabels = { 'present': '出席', 'absent': '缺席', 'late': '遲到', 'leave': '請假' };
-            var statusClasses = { 'present': 'success', 'absent': 'danger', 'late': 'warning', 'leave': 'info' };
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有出席紀錄</td></tr>';
+                return;
+            }
+            
+            var statusLabels = { 'present': '出席', 'absent': '缺席', 'late': '遲到', 'leave': '請假', 'exempt': '不須參加' };
+            var statusClasses = { 'present': 'success', 'absent': 'danger', 'late': 'warning', 'leave': 'info', 'exempt': 'secondary' };
             
             tbody.innerHTML = data.map(function(att) {
                 return '<tr>' +
                     '<td>' + (att.employees ? att.employees.name : '-') + '</td>' +
                     '<td>' + (att.courses ? att.courses.title : '-') + '</td>' +
                     '<td>' + att.attendance_date + '</td>' +
-                    '<td><span class="badge badge-' + statusClasses[att.status] + '">' + statusLabels[att.status] + '</span></td>' +
+                    '<td><span class="badge badge-' + (statusClasses[att.status] || 'info') + '">' + (statusLabels[att.status] || att.status) + '</span></td>' +
                     '<td>' + (att.makeup_required ? '<span class="badge badge-warning">需補課</span>' : '-') + '</td>' +
                     '<td>' + (att.makeup_completed ? '<span class="badge badge-success">已補課</span>' : (att.makeup_required ? '<span class="badge badge-danger">未補課</span>' : '-')) + '</td>' +
                     '<td>' + (att.makeup_required && !att.makeup_completed ? '<button class="btn btn-sm btn-success" onclick="showMakeupModal(\'' + att.id + '\',\'' + (att.employees ? att.employees.name : '') + '\',\'' + (att.courses ? att.courses.title : '') + '\')">標記補課完成</button>' : '-') + '</td>' +
@@ -1410,7 +1415,7 @@
             }
             
             container.innerHTML = '<table style="width:100%;">' +
-                '<thead><tr><th>員工</th><th>部門</th><th style="text-align:center;">出席</th><th style="text-align:center;">缺席</th><th style="text-align:center;">遲到</th><th style="text-align:center;">請假</th></tr></thead>' +
+                '<thead><tr><th>員工</th><th>部門</th><th style="text-align:center;">出席</th><th style="text-align:center;">缺席</th><th style="text-align:center;">遲到</th><th style="text-align:center;">請假</th><th style="text-align:center;">不須參加</th></tr></thead>' +
                 '<tbody>' + employees.map(function(emp) {
                     return '<tr data-employee-id="' + emp.id + '">' +
                         '<td>' + emp.name + (emp.is_newcomer ? ' <span class="badge badge-info">新人</span>' : '') + '</td>' +
@@ -1419,6 +1424,7 @@
                         '<td style="text-align:center;"><input type="radio" name="att_' + emp.id + '" value="absent"></td>' +
                         '<td style="text-align:center;"><input type="radio" name="att_' + emp.id + '" value="late"></td>' +
                         '<td style="text-align:center;"><input type="radio" name="att_' + emp.id + '" value="leave"></td>' +
+                        '<td style="text-align:center;"><input type="radio" name="att_' + emp.id + '" value="exempt"></td>' +
                         '</tr>';
                 }).join('') + '</tbody></table>' +
                 '<p style="color:var(--text-secondary);margin-top:1rem;font-size:0.875rem;">📋 課程分類：' + categoryName + 
@@ -1454,7 +1460,7 @@
                     employee_id: empId,
                     attendance_date: attendanceDate,
                     status: status,
-                    makeup_required: (status === 'absent' && isRequired),
+                    makeup_required: ((status === 'absent' || status === 'leave') && isRequired),
                     makeup_completed: false,
                     recorded_by: currentUser.id
                 });
