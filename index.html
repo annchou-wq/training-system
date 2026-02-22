@@ -363,6 +363,7 @@
                 <div class="form-group"><label>部門</label><select id="empDepartment"><option value="">請選擇部門</option></select></div>
                 <div class="form-group"><label>角色</label><select id="empRole"><option value="employee">員工</option><option value="manager">主管</option><option value="admin">管理者</option></select></div>
                 <div class="form-group"><label>到職日期</label><input type="date" id="empHireDate"></div>
+                <div class="form-group"><label><input type="checkbox" id="empNewcomer"> 標記為新人（可參加新人訓練）</label></div>
                 <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('employeeModal')">取消</button><button type="submit" class="btn btn-primary">儲存</button></div>
             </form>
         </div>
@@ -392,6 +393,7 @@
                 <div class="form-group"><label>課程時數（小時）</label><input type="number" id="courseDuration" step="0.5" min="0" placeholder="例如：2"></div>
                 <div class="form-group"><label>及格分數</label><input type="number" id="coursePassingScore" min="0" max="100" value="60"></div>
                 <div class="form-group"><label><input type="checkbox" id="courseRequired"> 必修課程</label></div>
+                <div class="form-group"><label><input type="checkbox" id="courseManagerOnly"> 僅限主管（員工無法報名此課程）</label></div>
                 <div class="form-group"><label>課程說明</label><textarea id="courseDescription" rows="3" placeholder="請輸入課程說明"></textarea></div>
                 <div class="form-group"><label>課程內容/教材連結</label><textarea id="courseContent" rows="3" placeholder="請輸入課程內容或教材連結"></textarea></div>
                 <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('courseModal')">取消</button><button type="submit" class="btn btn-primary">儲存</button></div>
@@ -673,39 +675,97 @@
             var recordMap = {};
             if (records) records.forEach(function(r) { recordMap[r.course_id] = r; });
             var coursesByCategory = { '新人訓練': [], '一般訓練': [], '主管訓練': [] };
+            
             if (courses) {
                 courses.forEach(function(course) {
                     var categoryName = course.course_categories ? course.course_categories.name : '一般訓練';
-                    if (coursesByCategory[categoryName]) {
-                        coursesByCategory[categoryName].push({ ...course, record: recordMap[course.id] });
+                    var canAccess = true;
+                    var isRequired = false;
+                    
+                    // 判斷是否可以存取此課程
+                    if (categoryName === '新人訓練') {
+                        // 新人訓練：只有新人可以上
+                        canAccess = currentUser.is_newcomer;
+                        isRequired = currentUser.is_newcomer && course.is_required;
+                    } else if (categoryName === '一般訓練') {
+                        // 一般訓練：所有人都可以上
+                        canAccess = true;
+                        isRequired = course.is_required;
+                    } else if (categoryName === '主管訓練') {
+                        // 主管訓練：主管必修，員工可選修（除非僅限主管）
+                        if (course.manager_only) {
+                            canAccess = (currentUser.role === 'manager' || currentUser.role === 'admin');
+                        } else {
+                            canAccess = true;
+                        }
+                        isRequired = (currentUser.role === 'manager' || currentUser.role === 'admin') && course.is_required;
+                    }
+                    
+                    if (canAccess && coursesByCategory[categoryName]) {
+                        coursesByCategory[categoryName].push({ ...course, record: recordMap[course.id], isRequired: isRequired });
                     }
                 });
             }
+            
             ['newbie', 'general', 'manager'].forEach(function(tab, index) {
                 var categoryNames = ['新人訓練', '一般訓練', '主管訓練'];
                 var container = document.getElementById(tab + 'Courses');
                 var categoryCourses = coursesByCategory[categoryNames[index]];
+                
                 if (categoryCourses.length === 0) {
-                    container.innerHTML = '<div class="empty-state"><p>此分類目前沒有課程</p></div>';
+                    var emptyMsg = '此分類目前沒有課程';
+                    if (tab === 'newbie' && !currentUser.is_newcomer) {
+                        emptyMsg = '您不是新人，無法查看新人訓練課程';
+                    }
+                    container.innerHTML = '<div class="empty-state"><p>' + emptyMsg + '</p></div>';
                 } else {
                     container.innerHTML = categoryCourses.map(function(course) {
                         var record = course.record;
                         var status = record ? record.status : 'not_started';
                         var statusLabels = { 'not_started': '未開始', 'in_progress': '進行中', 'completed': '已完成', 'failed': '未通過' };
                         var statusClasses = { 'not_started': 'info', 'in_progress': 'warning', 'completed': 'success', 'failed': 'danger' };
+                        
+                        var actionBtn = '';
+                        if (status === 'not_started') {
+                            actionBtn = '<button class="btn btn-sm btn-primary" onclick="startCourse(\'' + course.id + '\')">開始課程</button>';
+                        } else if (status === 'in_progress') {
+                            actionBtn = '<button class="btn btn-sm btn-warning" onclick="continueCourse(\'' + course.id + '\')">繼續學習</button>';
+                        } else {
+                            actionBtn = '<button class="btn btn-sm btn-secondary" onclick="showCourseDetail(\'' + course.id + '\')">查看</button>';
+                        }
+                        
                         return '<div style="display:flex;justify-content:space-between;align-items:center;padding:1rem;border-bottom:1px solid var(--border);">' +
                             '<div><h4 style="margin-bottom:0.25rem;">' + course.title + '</h4>' +
                             '<p style="color:var(--text-secondary);font-size:0.875rem;">' +
                             (course.duration_hours ? course.duration_hours + ' 小時 ' : '') +
-                            (course.is_required ? '<span class="badge badge-danger">必修</span>' : '') +
+                            (course.isRequired ? '<span class="badge badge-danger">必修</span> ' : '<span class="badge badge-info">選修</span> ') +
+                            (course.manager_only ? '<span class="badge badge-warning">僅主管</span>' : '') +
                             '</p></div>' +
                             '<div style="display:flex;align-items:center;gap:1rem;">' +
                             '<span class="badge badge-' + statusClasses[status] + '">' + statusLabels[status] + '</span>' +
-                            '<button class="btn btn-sm btn-secondary" onclick="showCourseDetail(\'' + course.id + '\')">查看</button>' +
+                            actionBtn +
                             '</div></div>';
                     }).join('');
                 }
             });
+        }
+
+        async function startCourse(courseId) {
+            try {
+                var { data: existing } = await supabase.from('training_records').select('*').eq('employee_id', currentUser.id).eq('course_id', courseId).single();
+                if (existing) {
+                    await supabase.from('training_records').update({ status: 'in_progress', start_date: new Date().toISOString() }).eq('id', existing.id);
+                } else {
+                    await supabase.from('training_records').insert({ employee_id: currentUser.id, course_id: courseId, status: 'in_progress', start_date: new Date().toISOString() });
+                }
+                alert('課程已開始！');
+                loadMyCourses();
+                loadDashboardData();
+            } catch (err) { alert('開始課程失敗：' + err.message); }
+        }
+
+        async function continueCourse(courseId) {
+            showCourseDetail(courseId);
         }
 
         async function loadMyRecords() {
@@ -771,7 +831,7 @@
             if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有員工資料</td></tr>'; return; }
             var roleLabels = { 'admin': '管理者', 'manager': '主管', 'employee': '員工' };
             tbody.innerHTML = data.map(function(emp) {
-                return '<tr><td>' + emp.employee_id + '</td><td>' + emp.name + '</td><td>' + emp.email + '</td>' +
+                return '<tr><td>' + emp.employee_id + '</td><td>' + emp.name + (emp.is_newcomer ? ' <span class="badge badge-info">新人</span>' : '') + '</td><td>' + emp.email + '</td>' +
                     '<td>' + (emp.departments ? emp.departments.name : '-') + '</td>' +
                     '<td>' + (roleLabels[emp.role] || '員工') + '</td>' +
                     '<td><span class="badge badge-' + (emp.is_active ? 'success' : 'danger') + '">' + (emp.is_active ? '啟用' : '停用') + '</span></td>' +
@@ -799,7 +859,7 @@
             var tbody = document.getElementById('coursesTable');
             if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有課程資料</td></tr>'; return; }
             tbody.innerHTML = data.map(function(course) {
-                return '<tr><td>' + course.title + '</td>' +
+                return '<tr><td>' + course.title + (course.manager_only ? ' <span class="badge badge-warning">僅主管</span>' : '') + '</td>' +
                     '<td>' + (course.course_categories ? course.course_categories.name : '-') + '</td>' +
                     '<td>' + (course.course_date ? new Date(course.course_date).toLocaleDateString() : '-') + '</td>' +
                     '<td>' + (course.deadline ? new Date(course.deadline).toLocaleDateString() : '-') + '</td>' +
@@ -872,6 +932,7 @@
                 document.getElementById('empDepartment').value = data.department_id || '';
                 document.getElementById('empRole').value = data.role;
                 document.getElementById('empHireDate').value = data.hire_date || '';
+                document.getElementById('empNewcomer').checked = data.is_newcomer || false;
                 showModal('employeeModal');
             }
         }
@@ -913,6 +974,7 @@
                 document.getElementById('courseDuration').value = data.duration_hours || '';
                 document.getElementById('coursePassingScore').value = data.passing_score || 60;
                 document.getElementById('courseRequired').checked = data.is_required;
+                document.getElementById('courseManagerOnly').checked = data.manager_only || false;
                 document.getElementById('courseDescription').value = data.description || '';
                 document.getElementById('courseContent').value = data.content || '';
                 showModal('courseModal');
@@ -992,7 +1054,8 @@
                 email: document.getElementById('empEmail').value,
                 department_id: document.getElementById('empDepartment').value || null,
                 role: document.getElementById('empRole').value,
-                hire_date: document.getElementById('empHireDate').value || null
+                hire_date: document.getElementById('empHireDate').value || null,
+                is_newcomer: document.getElementById('empNewcomer').checked
             };
             var password = document.getElementById('empPassword').value;
             if (password) { employeeData.password_hash = password; employeeData.must_change_password = true; }
@@ -1028,6 +1091,7 @@
                 duration_hours: document.getElementById('courseDuration').value || null,
                 passing_score: document.getElementById('coursePassingScore').value || 60,
                 is_required: document.getElementById('courseRequired').checked,
+                manager_only: document.getElementById('courseManagerOnly').checked,
                 description: document.getElementById('courseDescription').value,
                 content: document.getElementById('courseContent').value,
                 created_by: currentUser.id
@@ -1252,23 +1316,49 @@
                 return;
             }
             
-            // 取得所有啟用的員工
-            var { data: employees } = await supabase.from('employees').select('*, departments(name)').eq('is_active', true).order('name');
-            
-            if (!employees || employees.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;">沒有員工資料</p>';
+            // 取得課程資訊
+            var { data: course } = await supabase.from('courses').select('*, course_categories(name)').eq('id', courseId).single();
+            if (!course) {
+                container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;">找不到課程</p>';
                 return;
             }
             
-            // 檢查課程是否為必修
-            var courseOption = document.querySelector('#attendanceCourse option[value="' + courseId + '"]');
-            var isRequired = courseOption && courseOption.dataset.required === 'true';
+            var categoryName = course.course_categories ? course.course_categories.name : '一般訓練';
+            
+            // 取得所有啟用的員工
+            var { data: allEmployees } = await supabase.from('employees').select('*, departments(name)').eq('is_active', true).order('name');
+            
+            // 取得已經開始此課程的員工（用於主管訓練的員工選修）
+            var { data: enrolledRecords } = await supabase.from('training_records').select('employee_id').eq('course_id', courseId);
+            var enrolledIds = enrolledRecords ? enrolledRecords.map(function(r) { return r.employee_id; }) : [];
+            
+            // 根據課程分類篩選員工
+            var employees = [];
+            if (categoryName === '新人訓練') {
+                // 新人訓練：只有新人
+                employees = allEmployees.filter(function(emp) { return emp.is_newcomer; });
+            } else if (categoryName === '一般訓練') {
+                // 一般訓練：所有人
+                employees = allEmployees;
+            } else if (categoryName === '主管訓練') {
+                // 主管訓練：主管 + 已報名的員工
+                employees = allEmployees.filter(function(emp) {
+                    if (emp.role === 'manager' || emp.role === 'admin') return true;
+                    if (!course.manager_only && enrolledIds.includes(emp.id)) return true;
+                    return false;
+                });
+            }
+            
+            if (!employees || employees.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;">沒有符合條件的員工</p>';
+                return;
+            }
             
             container.innerHTML = '<table style="width:100%;">' +
                 '<thead><tr><th>員工</th><th>部門</th><th style="text-align:center;">出席</th><th style="text-align:center;">缺席</th><th style="text-align:center;">遲到</th><th style="text-align:center;">請假</th></tr></thead>' +
                 '<tbody>' + employees.map(function(emp) {
                     return '<tr data-employee-id="' + emp.id + '">' +
-                        '<td>' + emp.name + '</td>' +
+                        '<td>' + emp.name + (emp.is_newcomer ? ' <span class="badge badge-info">新人</span>' : '') + '</td>' +
                         '<td>' + (emp.departments ? emp.departments.name : '-') + '</td>' +
                         '<td style="text-align:center;"><input type="radio" name="att_' + emp.id + '" value="present" checked></td>' +
                         '<td style="text-align:center;"><input type="radio" name="att_' + emp.id + '" value="absent"></td>' +
@@ -1276,7 +1366,8 @@
                         '<td style="text-align:center;"><input type="radio" name="att_' + emp.id + '" value="leave"></td>' +
                         '</tr>';
                 }).join('') + '</tbody></table>' +
-                (isRequired ? '<p style="color:var(--warning);margin-top:1rem;font-size:0.875rem;">⚠️ 此為必修課程，缺席者將需要觀看影片補課</p>' : '');
+                '<p style="color:var(--text-secondary);margin-top:1rem;font-size:0.875rem;">📋 課程分類：' + categoryName + 
+                (course.is_required ? ' | ⚠️ 必修課程，缺席者需補課' : '') + '</p>';
         }
 
         document.getElementById('takeAttendanceForm').addEventListener('submit', async function(e) {
@@ -1289,17 +1380,20 @@
                 return;
             }
             
-            // 檢查課程是否為必修
-            var courseOption = document.querySelector('#attendanceCourse option[value="' + courseId + '"]');
-            var isRequired = courseOption && courseOption.dataset.required === 'true';
+            // 取得課程資訊
+            var { data: course } = await supabase.from('courses').select('*').eq('id', courseId).single();
+            var isRequired = course && course.is_required;
             
             // 收集所有員工的出席狀態
             var rows = document.querySelectorAll('#employeeAttendanceList tbody tr');
             var attendanceData = [];
+            var trainingRecords = [];
             
             rows.forEach(function(row) {
                 var empId = row.dataset.employeeId;
                 var status = row.querySelector('input[name="att_' + empId + '"]:checked').value;
+                
+                // 出席紀錄
                 attendanceData.push({
                     course_id: courseId,
                     employee_id: empId,
@@ -1309,13 +1403,35 @@
                     makeup_completed: false,
                     recorded_by: currentUser.id
                 });
+                
+                // 出席或遲到者，自動建立/更新訓練紀錄為「進行中」
+                if (status === 'present' || status === 'late') {
+                    trainingRecords.push({
+                        course_id: courseId,
+                        employee_id: empId,
+                        status: 'in_progress',
+                        start_date: attendanceDate
+                    });
+                }
             });
             
             try {
-                // 使用 upsert 避免重複
-                var { error } = await supabase.from('attendance_records').upsert(attendanceData, { onConflict: 'course_id,employee_id,attendance_date' });
-                if (error) throw error;
-                alert('點名完成！');
+                // 儲存出席紀錄
+                var { error: attError } = await supabase.from('attendance_records').upsert(attendanceData, { onConflict: 'course_id,employee_id,attendance_date' });
+                if (attError) throw attError;
+                
+                // 儲存訓練紀錄（出席者）
+                for (var i = 0; i < trainingRecords.length; i++) {
+                    var rec = trainingRecords[i];
+                    var { data: existing } = await supabase.from('training_records').select('*').eq('employee_id', rec.employee_id).eq('course_id', rec.course_id).single();
+                    if (!existing) {
+                        await supabase.from('training_records').insert(rec);
+                    } else if (existing.status === 'not_started') {
+                        await supabase.from('training_records').update({ status: 'in_progress', start_date: rec.start_date }).eq('id', existing.id);
+                    }
+                }
+                
+                alert('點名完成！出席者已自動標記為「進行中」');
                 closeModal('takeAttendanceModal');
                 loadAttendanceRecords();
             } catch (err) {
