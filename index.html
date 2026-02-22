@@ -148,6 +148,7 @@
                     <li class="admin-only hidden"><a href="#" data-page="departments">🏢 部門管理</a></li>
                     <li class="admin-only hidden"><a href="#" data-page="courses">📚 課程管理</a></li>
                     <li class="admin-only hidden"><a href="#" data-page="all-records">📊 所有紀錄</a></li>
+                    <li class="admin-only hidden"><a href="#" data-page="attendance">📋 出席管理</a></li>
                     <li class="admin-only hidden"><a href="#" data-page="settings">⚙️ 系統設定</a></li>
                     <li class="admin-only hidden"><a href="#" data-page="export">📥 資料匯出</a></li>
                 </ul>
@@ -271,6 +272,19 @@
                 <div class="card"><div class="table-container">
                     <table><thead><tr><th>員工姓名</th><th>課程名稱</th><th>分類</th><th>狀態</th><th>分數</th><th>完成日期</th><th>操作</th></tr></thead>
                     <tbody id="allRecordsTable"><tr><td colspan="7" class="loading"><div class="spinner"></div></td></tr></tbody></table>
+                </div></div>
+            </div>
+
+            <!-- Attendance Page -->
+            <div id="page-attendance" class="page">
+                <div class="page-header"><h1>📋 出席管理</h1><button class="btn btn-primary" onclick="showTakeAttendanceModal()">✅ 進行點名</button></div>
+                <div class="toolbar">
+                    <select class="filter-select" id="attendanceCourseFilter" onchange="loadAttendanceRecords()"><option value="">選擇課程</option></select>
+                    <input type="date" class="search-input" id="attendanceDateFilter" onchange="loadAttendanceRecords()" style="flex:none;width:auto;">
+                </div>
+                <div class="card"><div class="table-container">
+                    <table><thead><tr><th>員工姓名</th><th>課程名稱</th><th>日期</th><th>出席狀態</th><th>需補課</th><th>補課完成</th><th>操作</th></tr></thead>
+                    <tbody id="attendanceTable"><tr><td colspan="7" class="empty-state">請選擇課程查看出席紀錄</td></tr></tbody></table>
                 </div></div>
             </div>
 
@@ -410,6 +424,32 @@
         </div>
     </div>
 
+    <div id="takeAttendanceModal" class="modal">
+        <div class="modal-content" style="max-width:700px;">
+            <div class="modal-header"><h2>✅ 課程點名</h2><button class="modal-close" onclick="closeModal('takeAttendanceModal')">&times;</button></div>
+            <form id="takeAttendanceForm">
+                <div class="form-group"><label>選擇課程 *</label><select id="attendanceCourse" required onchange="loadCourseEmployees()"><option value="">請選擇課程</option></select></div>
+                <div class="form-group"><label>點名日期 *</label><input type="date" id="attendanceDate" required></div>
+                <div id="employeeAttendanceList" style="max-height:300px;overflow-y:auto;margin:1rem 0;"></div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('takeAttendanceModal')">取消</button><button type="submit" class="btn btn-primary">儲存點名</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="makeupModal" class="modal">
+        <div class="modal-content" style="max-width:400px;">
+            <div class="modal-header"><h2>📹 補課確認</h2><button class="modal-close" onclick="closeModal('makeupModal')">&times;</button></div>
+            <form id="makeupForm">
+                <input type="hidden" id="makeupRecordId">
+                <div class="form-group"><label>員工</label><input type="text" id="makeupEmployee" readonly style="background:var(--bg-hover);"></div>
+                <div class="form-group"><label>課程</label><input type="text" id="makeupCourse" readonly style="background:var(--bg-hover);"></div>
+                <div class="form-group"><label>補課日期</label><input type="date" id="makeupDate"></div>
+                <div class="form-group"><label>備註</label><textarea id="makeupNotes" rows="2" placeholder="選填"></textarea></div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('makeupModal')">取消</button><button type="submit" class="btn btn-success">確認已完成補課</button></div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // Supabase 設定
         var SUPABASE_URL = 'https://bhrinphpabcfccvotjrp.supabase.co';
@@ -520,6 +560,7 @@
                 case 'departments': loadDepartmentsTable(); break;
                 case 'courses': loadCourses(); break;
                 case 'all-records': loadAllRecords(); break;
+                case 'attendance': loadAttendancePage(); break;
                 case 'settings': loadSettings(); break;
             }
         }
@@ -536,8 +577,20 @@
             try {
                 var { data: records } = await supabase.from('training_records').select('*, courses(*)').eq('employee_id', currentUser.id);
                 var { data: courses } = await supabase.from('courses').select('*').eq('is_active', true);
+                var { data: attendanceRecords } = await supabase.from('attendance_records').select('*, courses(title)').eq('employee_id', currentUser.id);
+                
                 var recordMap = {};
                 if (records) records.forEach(function(r) { recordMap[r.course_id] = r; });
+                
+                // 缺席提醒（需補課）
+                if (attendanceRecords) {
+                    attendanceRecords.forEach(function(att) {
+                        if (att.status === 'absent' && att.makeup_required && !att.makeup_completed) {
+                            reminders.push({ type: 'absent', message: '🎬 您缺席了「' + (att.courses ? att.courses.title : '課程') + '」，請觀看影片完成補課' });
+                        }
+                    });
+                }
+                
                 if (courses) {
                     courses.forEach(function(course) {
                         var record = recordMap[course.id];
@@ -1120,6 +1173,187 @@
             }
             exportToCSV(data, filename);
         }
+
+        // ========================================
+        // 出席管理功能
+        // ========================================
+        async function loadAttendancePage() {
+            // 載入課程下拉選單
+            var { data: courses } = await supabase.from('courses').select('*').eq('is_active', true).order('title');
+            var courseFilter = document.getElementById('attendanceCourseFilter');
+            courseFilter.innerHTML = '<option value="">選擇課程</option>';
+            if (courses) {
+                courses.forEach(function(c) {
+                    courseFilter.innerHTML += '<option value="' + c.id + '">' + c.title + '</option>';
+                });
+            }
+            // 設定今天日期
+            document.getElementById('attendanceDateFilter').value = new Date().toISOString().split('T')[0];
+        }
+
+        async function loadAttendanceRecords() {
+            var courseId = document.getElementById('attendanceCourseFilter').value;
+            var dateFilter = document.getElementById('attendanceDateFilter').value;
+            var tbody = document.getElementById('attendanceTable');
+            
+            if (!courseId) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">請選擇課程查看出席紀錄</td></tr>';
+                return;
+            }
+            
+            var query = supabase.from('attendance_records').select('*, employees(name, employee_id), courses(title)').eq('course_id', courseId);
+            if (dateFilter) query = query.eq('attendance_date', dateFilter);
+            
+            var { data } = await query.order('attendance_date', { ascending: false });
+            
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有出席紀錄</td></tr>';
+                return;
+            }
+            
+            var statusLabels = { 'present': '出席', 'absent': '缺席', 'late': '遲到', 'leave': '請假' };
+            var statusClasses = { 'present': 'success', 'absent': 'danger', 'late': 'warning', 'leave': 'info' };
+            
+            tbody.innerHTML = data.map(function(att) {
+                return '<tr>' +
+                    '<td>' + (att.employees ? att.employees.name : '-') + '</td>' +
+                    '<td>' + (att.courses ? att.courses.title : '-') + '</td>' +
+                    '<td>' + att.attendance_date + '</td>' +
+                    '<td><span class="badge badge-' + statusClasses[att.status] + '">' + statusLabels[att.status] + '</span></td>' +
+                    '<td>' + (att.makeup_required ? '<span class="badge badge-warning">需補課</span>' : '-') + '</td>' +
+                    '<td>' + (att.makeup_completed ? '<span class="badge badge-success">已補課</span>' : (att.makeup_required ? '<span class="badge badge-danger">未補課</span>' : '-')) + '</td>' +
+                    '<td>' + (att.makeup_required && !att.makeup_completed ? '<button class="btn btn-sm btn-success" onclick="showMakeupModal(\'' + att.id + '\',\'' + (att.employees ? att.employees.name : '') + '\',\'' + (att.courses ? att.courses.title : '') + '\')">標記補課完成</button>' : '-') + '</td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        async function showTakeAttendanceModal() {
+            // 載入課程
+            var { data: courses } = await supabase.from('courses').select('*').eq('is_active', true).order('title');
+            var courseSelect = document.getElementById('attendanceCourse');
+            courseSelect.innerHTML = '<option value="">請選擇課程</option>';
+            if (courses) {
+                courses.forEach(function(c) {
+                    courseSelect.innerHTML += '<option value="' + c.id + '" data-required="' + c.is_required + '">' + c.title + (c.is_required ? ' (必修)' : '') + '</option>';
+                });
+            }
+            // 設定今天日期
+            document.getElementById('attendanceDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('employeeAttendanceList').innerHTML = '<p style="color:var(--text-secondary);text-align:center;">請先選擇課程</p>';
+            showModal('takeAttendanceModal');
+        }
+
+        async function loadCourseEmployees() {
+            var courseId = document.getElementById('attendanceCourse').value;
+            var container = document.getElementById('employeeAttendanceList');
+            
+            if (!courseId) {
+                container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;">請先選擇課程</p>';
+                return;
+            }
+            
+            // 取得所有啟用的員工
+            var { data: employees } = await supabase.from('employees').select('*, departments(name)').eq('is_active', true).order('name');
+            
+            if (!employees || employees.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;">沒有員工資料</p>';
+                return;
+            }
+            
+            // 檢查課程是否為必修
+            var courseOption = document.querySelector('#attendanceCourse option[value="' + courseId + '"]');
+            var isRequired = courseOption && courseOption.dataset.required === 'true';
+            
+            container.innerHTML = '<table style="width:100%;">' +
+                '<thead><tr><th>員工</th><th>部門</th><th style="text-align:center;">出席</th><th style="text-align:center;">缺席</th><th style="text-align:center;">遲到</th><th style="text-align:center;">請假</th></tr></thead>' +
+                '<tbody>' + employees.map(function(emp) {
+                    return '<tr data-employee-id="' + emp.id + '">' +
+                        '<td>' + emp.name + '</td>' +
+                        '<td>' + (emp.departments ? emp.departments.name : '-') + '</td>' +
+                        '<td style="text-align:center;"><input type="radio" name="att_' + emp.id + '" value="present" checked></td>' +
+                        '<td style="text-align:center;"><input type="radio" name="att_' + emp.id + '" value="absent"></td>' +
+                        '<td style="text-align:center;"><input type="radio" name="att_' + emp.id + '" value="late"></td>' +
+                        '<td style="text-align:center;"><input type="radio" name="att_' + emp.id + '" value="leave"></td>' +
+                        '</tr>';
+                }).join('') + '</tbody></table>' +
+                (isRequired ? '<p style="color:var(--warning);margin-top:1rem;font-size:0.875rem;">⚠️ 此為必修課程，缺席者將需要觀看影片補課</p>' : '');
+        }
+
+        document.getElementById('takeAttendanceForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            var courseId = document.getElementById('attendanceCourse').value;
+            var attendanceDate = document.getElementById('attendanceDate').value;
+            
+            if (!courseId || !attendanceDate) {
+                alert('請選擇課程和日期');
+                return;
+            }
+            
+            // 檢查課程是否為必修
+            var courseOption = document.querySelector('#attendanceCourse option[value="' + courseId + '"]');
+            var isRequired = courseOption && courseOption.dataset.required === 'true';
+            
+            // 收集所有員工的出席狀態
+            var rows = document.querySelectorAll('#employeeAttendanceList tbody tr');
+            var attendanceData = [];
+            
+            rows.forEach(function(row) {
+                var empId = row.dataset.employeeId;
+                var status = row.querySelector('input[name="att_' + empId + '"]:checked').value;
+                attendanceData.push({
+                    course_id: courseId,
+                    employee_id: empId,
+                    attendance_date: attendanceDate,
+                    status: status,
+                    makeup_required: (status === 'absent' && isRequired),
+                    makeup_completed: false,
+                    recorded_by: currentUser.id
+                });
+            });
+            
+            try {
+                // 使用 upsert 避免重複
+                var { error } = await supabase.from('attendance_records').upsert(attendanceData, { onConflict: 'course_id,employee_id,attendance_date' });
+                if (error) throw error;
+                alert('點名完成！');
+                closeModal('takeAttendanceModal');
+                loadAttendanceRecords();
+            } catch (err) {
+                alert('點名儲存失敗：' + err.message);
+            }
+        });
+
+        function showMakeupModal(recordId, empName, courseName) {
+            document.getElementById('makeupRecordId').value = recordId;
+            document.getElementById('makeupEmployee').value = empName;
+            document.getElementById('makeupCourse').value = courseName;
+            document.getElementById('makeupDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('makeupNotes').value = '';
+            showModal('makeupModal');
+        }
+
+        document.getElementById('makeupForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            var recordId = document.getElementById('makeupRecordId').value;
+            var makeupDate = document.getElementById('makeupDate').value;
+            var notes = document.getElementById('makeupNotes').value;
+            
+            try {
+                var { error } = await supabase.from('attendance_records').update({
+                    makeup_completed: true,
+                    makeup_date: makeupDate || new Date().toISOString().split('T')[0],
+                    notes: notes,
+                    updated_at: new Date().toISOString()
+                }).eq('id', recordId);
+                
+                if (error) throw error;
+                alert('已標記補課完成！');
+                closeModal('makeupModal');
+                loadAttendanceRecords();
+            } catch (err) {
+                alert('更新失敗：' + err.message);
+            }
+        });
 
         function showAlert(containerId, message, type) {
             var container = document.getElementById(containerId);
