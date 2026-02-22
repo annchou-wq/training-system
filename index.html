@@ -230,9 +230,9 @@
             <div id="page-employees" class="page">
                 <div class="page-header"><h1>👤 員工管理</h1><button class="btn btn-primary" onclick="showAddEmployeeModal()">➕ 新增員工</button></div>
                 <div class="toolbar">
-                    <input type="text" class="search-input" id="employeeSearch" placeholder="搜尋員工姓名或編號...">
-                    <select class="filter-select" id="employeeDeptFilter"><option value="">全部部門</option></select>
-                    <select class="filter-select" id="employeeRoleFilter"><option value="">全部角色</option><option value="admin">管理者</option><option value="manager">主管</option><option value="employee">員工</option></select>
+                    <input type="text" class="search-input" id="employeeSearch" placeholder="搜尋員工姓名或編號..." oninput="filterEmployees()">
+                    <select class="filter-select" id="employeeDeptFilter" onchange="filterEmployees()"><option value="">全部部門</option></select>
+                    <select class="filter-select" id="employeeRoleFilter" onchange="filterEmployees()"><option value="">全部角色</option><option value="admin">管理者</option><option value="manager">主管</option><option value="employee">員工</option></select>
                 </div>
                 <div class="card"><div class="table-container">
                     <table><thead><tr><th>員工編號</th><th>姓名</th><th>Email</th><th>部門</th><th>角色</th><th>狀態</th><th>操作</th></tr></thead>
@@ -253,8 +253,8 @@
             <div id="page-courses" class="page">
                 <div class="page-header"><h1>📚 課程管理</h1><button class="btn btn-primary" onclick="showAddCourseModal()">➕ 新增課程</button></div>
                 <div class="toolbar">
-                    <input type="text" class="search-input" id="courseSearch" placeholder="搜尋課程名稱...">
-                    <select class="filter-select" id="courseCategoryFilter"><option value="">全部分類</option><option value="新人訓練">新人訓練</option><option value="一般訓練">一般訓練</option><option value="主管訓練">主管訓練</option></select>
+                    <input type="text" class="search-input" id="courseSearch" placeholder="搜尋課程名稱..." oninput="filterCourses()">
+                    <select class="filter-select" id="courseCategoryFilter" onchange="filterCourses()"><option value="">全部分類</option><option value="新人訓練">新人訓練</option><option value="一般訓練">一般訓練</option><option value="主管訓練">主管訓練</option></select>
                 </div>
                 <div class="card"><div class="table-container">
                     <table><thead><tr><th>課程名稱</th><th>分類</th><th>課程日期</th><th>截止日</th><th>必修</th><th>狀態</th><th>操作</th></tr></thead>
@@ -266,8 +266,8 @@
             <div id="page-all-records" class="page">
                 <div class="page-header"><h1>📊 所有訓練紀錄</h1><button class="btn btn-secondary" onclick="exportAllRecords()">📥 匯出全部</button></div>
                 <div class="toolbar">
-                    <input type="text" class="search-input" id="recordSearch" placeholder="搜尋員工或課程...">
-                    <select class="filter-select" id="recordStatusFilter"><option value="">全部狀態</option><option value="completed">已完成</option><option value="in_progress">進行中</option><option value="not_started">未開始</option><option value="failed">未通過</option></select>
+                    <input type="text" class="search-input" id="recordSearch" placeholder="搜尋員工或課程..." oninput="filterRecords()">
+                    <select class="filter-select" id="recordStatusFilter" onchange="filterRecords()"><option value="">全部狀態</option><option value="completed">已完成</option><option value="in_progress">進行中</option><option value="not_started">未開始</option><option value="failed">未通過</option></select>
                 </div>
                 <div class="card"><div class="table-container">
                     <table><thead><tr><th>員工姓名</th><th>課程名稱</th><th>分類</th><th>狀態</th><th>分數</th><th>完成日期</th><th>操作</th></tr></thead>
@@ -827,6 +827,11 @@
 
         async function loadEmployees() {
             var { data } = await supabase.from('employees').select('*, departments(name)').order('employee_id');
+            window.allEmployees = data; // 儲存到全域變數供篩選用
+            renderEmployees(data);
+        }
+
+        function renderEmployees(data) {
             var tbody = document.getElementById('employeesTable');
             if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有員工資料</td></tr>'; return; }
             var roleLabels = { 'admin': '管理者', 'manager': '主管', 'employee': '員工' };
@@ -838,6 +843,19 @@
                     '<td><button class="btn btn-sm btn-secondary" onclick="editEmployee(\'' + emp.id + '\')">編輯</button> ' +
                     '<button class="btn btn-sm btn-danger" onclick="toggleEmployeeStatus(\'' + emp.id + '\',' + !emp.is_active + ')">' + (emp.is_active ? '停用' : '啟用') + '</button></td></tr>';
             }).join('');
+        }
+
+        function filterEmployees() {
+            var search = document.getElementById('employeeSearch').value.toLowerCase();
+            var deptFilter = document.getElementById('employeeDeptFilter').value;
+            var roleFilter = document.getElementById('employeeRoleFilter').value;
+            var filtered = (window.allEmployees || []).filter(function(emp) {
+                var matchSearch = !search || emp.name.toLowerCase().includes(search) || emp.employee_id.toLowerCase().includes(search);
+                var matchDept = !deptFilter || emp.department_id === deptFilter;
+                var matchRole = !roleFilter || emp.role === roleFilter;
+                return matchSearch && matchDept && matchRole;
+            });
+            renderEmployees(filtered);
         }
 
         async function loadDepartmentsTable() {
@@ -856,6 +874,11 @@
 
         async function loadCourses() {
             var { data } = await supabase.from('courses').select('*, course_categories(name)').order('created_at', { ascending: false });
+            window.allCourses = data; // 儲存到全域變數供篩選用
+            renderCourses(data);
+        }
+
+        function renderCourses(data) {
             var tbody = document.getElementById('coursesTable');
             if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有課程資料</td></tr>'; return; }
             tbody.innerHTML = data.map(function(course) {
@@ -870,8 +893,24 @@
             }).join('');
         }
 
+        function filterCourses() {
+            var search = document.getElementById('courseSearch').value.toLowerCase();
+            var categoryFilter = document.getElementById('courseCategoryFilter').value;
+            var filtered = (window.allCourses || []).filter(function(course) {
+                var matchSearch = !search || course.title.toLowerCase().includes(search);
+                var matchCategory = !categoryFilter || (course.course_categories && course.course_categories.name === categoryFilter);
+                return matchSearch && matchCategory;
+            });
+            renderCourses(filtered);
+        }
+
         async function loadAllRecords() {
             var { data } = await supabase.from('training_records').select('*, employees(name, employee_id), courses(title, course_categories(name))').order('updated_at', { ascending: false });
+            window.allRecords = data; // 儲存到全域變數供篩選用
+            renderAllRecords(data);
+        }
+
+        function renderAllRecords(data) {
             var tbody = document.getElementById('allRecordsTable');
             if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有訓練紀錄</td></tr>'; return; }
             var statusLabels = { 'not_started': '未開始', 'in_progress': '進行中', 'completed': '已完成', 'failed': '未通過' };
@@ -885,6 +924,20 @@
                     '<td>' + (record.completion_date ? new Date(record.completion_date).toLocaleDateString() : '-') + '</td>' +
                     '<td><button class="btn btn-sm btn-primary" onclick="showUpdateRecordModal(\'' + record.id + '\',\'' + (record.employees ? record.employees.name : '') + '\',\'' + (record.courses ? record.courses.title : '') + '\',\'' + record.status + '\',' + record.score + ',\'' + (record.notes || '') + '\',\'' + record.employee_id + '\',\'' + record.course_id + '\')">更新狀態</button></td></tr>';
             }).join('');
+        }
+
+        function filterRecords() {
+            var search = document.getElementById('recordSearch').value.toLowerCase();
+            var statusFilter = document.getElementById('recordStatusFilter').value;
+            var filtered = (window.allRecords || []).filter(function(record) {
+                var empName = record.employees ? record.employees.name.toLowerCase() : '';
+                var empId = record.employees ? record.employees.employee_id.toLowerCase() : '';
+                var courseName = record.courses ? record.courses.title.toLowerCase() : '';
+                var matchSearch = !search || empName.includes(search) || empId.includes(search) || courseName.includes(search);
+                var matchStatus = !statusFilter || record.status === statusFilter;
+                return matchSearch && matchStatus;
+            });
+            renderAllRecords(filtered);
         }
 
         async function loadSettings() {
@@ -1251,8 +1304,8 @@
                     courseFilter.innerHTML += '<option value="' + c.id + '">' + c.title + '</option>';
                 });
             }
-            // 設定今天日期
-            document.getElementById('attendanceDateFilter').value = new Date().toISOString().split('T')[0];
+            // 不設定預設日期，讓使用者可以看到所有日期的紀錄
+            document.getElementById('attendanceDateFilter').value = '';
         }
 
         async function loadAttendanceRecords() {
@@ -1268,10 +1321,12 @@
             var query = supabase.from('attendance_records').select('*, employees(name, employee_id), courses(title)').eq('course_id', courseId);
             if (dateFilter) query = query.eq('attendance_date', dateFilter);
             
-            var { data } = await query.order('attendance_date', { ascending: false });
+            var { data, error } = await query.order('attendance_date', { ascending: false });
+            
+            console.log('Attendance query result:', data, error); // 除錯用
             
             if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有出席紀錄</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有出席紀錄' + (error ? '（錯誤：' + error.message + '）' : '') + '</td></tr>';
                 return;
             }
             
