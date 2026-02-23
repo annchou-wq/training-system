@@ -189,14 +189,16 @@
             <!-- My Training Page -->
             <div id="page-my-training" class="page">
                 <div class="page-header"><h1>📖 我的訓練課程</h1></div>
-                <div class="tabs">
-                    <button class="tab-btn active" data-tab="newbie">🌱 新人訓練</button>
-                    <button class="tab-btn" data-tab="general">📚 一般訓練</button>
-                    <button class="tab-btn" data-tab="manager">👔 主管訓練</button>
+                <div class="toolbar">
+                    <input type="text" class="search-input" id="myTrainingSearch" placeholder="搜尋課程名稱..." oninput="filterMyTraining()">
+                    <select class="filter-select" id="myTrainingCategoryFilter" onchange="filterMyTraining()"><option value="">全部分類</option><option value="新人訓練">新人訓練</option><option value="一般訓練">一般訓練</option><option value="主管訓練">主管訓練</option></select>
+                    <select class="filter-select" id="myTrainingDeptFilter" onchange="filterMyTraining()"><option value="">全部提供部門</option><option value="人力資源部">人力資源部</option><option value="財務部">財務部</option><option value="數位部">數位部</option></select>
+                    <select class="filter-select" id="myTrainingStatusFilter" onchange="filterMyTraining()"><option value="">全部狀態</option><option value="not_started">未開始</option><option value="in_progress">進行中</option><option value="completed">已完成</option></select>
                 </div>
-                <div id="tab-newbie" class="tab-content active"><div class="card"><div id="newbieCourses" class="loading"><div class="spinner"></div></div></div></div>
-                <div id="tab-general" class="tab-content"><div class="card"><div id="generalCourses" class="loading"><div class="spinner"></div></div></div></div>
-                <div id="tab-manager" class="tab-content"><div class="card"><div id="managerCourses" class="loading"><div class="spinner"></div></div></div></div>
+                <div class="card"><div class="table-container">
+                    <table><thead><tr><th>課程名稱</th><th>分類</th><th>提供部門</th><th>類型</th><th>課程日期</th><th>必修/選修</th><th>狀態</th><th>操作</th></tr></thead>
+                    <tbody id="myTrainingTable"><tr><td colspan="8" class="loading"><div class="spinner"></div></td></tr></tbody></table>
+                </div></div>
             </div>
 
             <!-- My Records Page -->
@@ -257,7 +259,7 @@
                     <select class="filter-select" id="courseCategoryFilter" onchange="filterCourses()"><option value="">全部分類</option><option value="新人訓練">新人訓練</option><option value="一般訓練">一般訓練</option><option value="主管訓練">主管訓練</option></select>
                 </div>
                 <div class="card"><div class="table-container">
-                    <table><thead><tr><th>課程名稱</th><th>分類</th><th>課程日期</th><th>截止日</th><th>必修</th><th>狀態</th><th>操作</th></tr></thead>
+                    <table><thead><tr><th>課程名稱</th><th>分類</th><th>提供部門</th><th>類型</th><th>課程日期</th><th>必修</th><th>操作</th></tr></thead>
                     <tbody id="coursesTable"><tr><td colspan="7" class="loading"><div class="spinner"></div></td></tr></tbody></table>
                 </div></div>
             </div>
@@ -267,7 +269,7 @@
                 <div class="page-header"><h1>📊 所有訓練紀錄</h1><button class="btn btn-secondary" onclick="exportAllRecords()">📥 匯出全部</button></div>
                 <div class="toolbar">
                     <input type="text" class="search-input" id="recordSearch" placeholder="搜尋員工或課程..." oninput="filterRecords()">
-                    <select class="filter-select" id="recordStatusFilter" onchange="filterRecords()"><option value="">全部狀態</option><option value="completed">已完成</option><option value="in_progress">進行中</option><option value="not_started">未開始</option><option value="failed">未通過</option></select>
+                    <select class="filter-select" id="recordStatusFilter" onchange="filterRecords()"><option value="">全部狀態</option><option value="completed">已完成</option><option value="in_progress">進行中</option><option value="failed">未通過</option></select>
                 </div>
                 <div class="card"><div class="table-container">
                     <table><thead><tr><th>員工姓名</th><th>課程名稱</th><th>分類</th><th>狀態</th><th>分數</th><th>完成日期</th><th>操作</th></tr></thead>
@@ -382,14 +384,22 @@
     </div>
 
     <div id="courseModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width:600px;">
             <div class="modal-header"><h2 id="courseModalTitle">新增課程</h2><button class="modal-close" onclick="closeModal('courseModal')">&times;</button></div>
             <form id="courseForm">
                 <input type="hidden" id="courseEditId">
                 <div class="form-group"><label>課程名稱 *</label><input type="text" id="courseName" required placeholder="請輸入課程名稱"></div>
                 <div class="form-group"><label>分類 *</label><select id="courseCategory" required><option value="">請選擇分類</option></select></div>
+                <div class="form-group"><label>提供課程部門</label><select id="courseProviderDept"><option value="">請選擇部門</option><option value="人力資源部">人力資源部</option><option value="財務部">財務部</option><option value="數位部">數位部</option></select></div>
+                <div class="form-group"><label>講師</label><input type="text" id="courseInstructor" placeholder="請輸入講師姓名"></div>
+                <div class="form-group"><label>課程類型 *</label><select id="courseType" required onchange="toggleOnlineFields()"><option value="onsite">實體課程</option><option value="online_scheduled">線上課程（固定日期）</option><option value="online_self">線上課程（自學）</option></select></div>
                 <div class="form-group"><label>課程日期</label><input type="date" id="courseDate"></div>
                 <div class="form-group"><label>完成截止日</label><input type="date" id="courseDeadline"></div>
+                <div id="onlineFields" style="display:none;">
+                    <div class="form-group"><label>線上課程連結</label><input type="url" id="courseOnlineUrl" placeholder="https://..."></div>
+                    <div class="form-group"><label>線上課程密碼</label><input type="text" id="courseOnlinePassword" placeholder="選填"></div>
+                    <div class="form-group"><label>行事曆連結（Google Calendar 等）</label><input type="url" id="courseCalendarUrl" placeholder="https://calendar.google.com/..."></div>
+                </div>
                 <div class="form-group"><label>課程時數（小時）</label><input type="number" id="courseDuration" step="0.5" min="0" placeholder="例如：2"></div>
                 <div class="form-group"><label>及格分數</label><input type="number" id="coursePassingScore" min="0" max="100" value="60"></div>
                 <div class="form-group"><label><input type="checkbox" id="courseRequired"> 必修課程</label></div>
@@ -671,29 +681,26 @@
         }
 
         async function loadMyCourses() {
-            var { data: courses } = await supabase.from('courses').select('*, course_categories(name)').eq('is_active', true);
+            var { data: courses } = await supabase.from('courses').select('*, course_categories(name)').eq('is_active', true).order('course_date', { ascending: true, nullsFirst: false });
             var { data: records } = await supabase.from('training_records').select('*').eq('employee_id', currentUser.id);
             var recordMap = {};
             if (records) records.forEach(function(r) { recordMap[r.course_id] = r; });
-            var coursesByCategory = { '新人訓練': [], '一般訓練': [], '主管訓練': [] };
             
+            // 篩選可存取的課程
+            var accessibleCourses = [];
             if (courses) {
                 courses.forEach(function(course) {
                     var categoryName = course.course_categories ? course.course_categories.name : '一般訓練';
                     var canAccess = true;
                     var isRequired = false;
                     
-                    // 判斷是否可以存取此課程
                     if (categoryName === '新人訓練') {
-                        // 新人訓練：只有新人可以上
                         canAccess = currentUser.is_newcomer;
                         isRequired = currentUser.is_newcomer && course.is_required;
                     } else if (categoryName === '一般訓練') {
-                        // 一般訓練：所有人都可以上
                         canAccess = true;
                         isRequired = course.is_required;
                     } else if (categoryName === '主管訓練') {
-                        // 主管訓練：主管必修，員工可選修（除非僅限主管）
                         if (course.manager_only) {
                             canAccess = (currentUser.role === 'manager' || currentUser.role === 'admin');
                         } else {
@@ -702,53 +709,71 @@
                         isRequired = (currentUser.role === 'manager' || currentUser.role === 'admin') && course.is_required;
                     }
                     
-                    if (canAccess && coursesByCategory[categoryName]) {
-                        coursesByCategory[categoryName].push({ ...course, record: recordMap[course.id], isRequired: isRequired });
+                    if (canAccess) {
+                        accessibleCourses.push({ 
+                            ...course, 
+                            record: recordMap[course.id], 
+                            isRequired: isRequired,
+                            categoryName: categoryName
+                        });
                     }
                 });
             }
             
-            ['newbie', 'general', 'manager'].forEach(function(tab, index) {
-                var categoryNames = ['新人訓練', '一般訓練', '主管訓練'];
-                var container = document.getElementById(tab + 'Courses');
-                var categoryCourses = coursesByCategory[categoryNames[index]];
+            window.myTrainingCourses = accessibleCourses;
+            renderMyTraining(accessibleCourses);
+        }
+
+        function renderMyTraining(courses) {
+            var tbody = document.getElementById('myTrainingTable');
+            if (!courses || courses.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-state">沒有可參加的課程</td></tr>';
+                return;
+            }
+            
+            var statusLabels = { 'not_started': '未開始', 'in_progress': '進行中', 'completed': '已完成', 'failed': '未通過' };
+            var statusClasses = { 'not_started': 'info', 'in_progress': 'warning', 'completed': 'success', 'failed': 'danger' };
+            var courseTypeLabels = { 'onsite': '實體', 'online_scheduled': '線上(固定)', 'online_self': '線上(自學)' };
+            
+            tbody.innerHTML = courses.map(function(course) {
+                var record = course.record;
+                var status = record ? record.status : 'not_started';
                 
-                if (categoryCourses.length === 0) {
-                    var emptyMsg = '此分類目前沒有課程';
-                    if (tab === 'newbie' && !currentUser.is_newcomer) {
-                        emptyMsg = '您不是新人，無法查看新人訓練課程';
-                    }
-                    container.innerHTML = '<div class="empty-state"><p>' + emptyMsg + '</p></div>';
-                } else {
-                    container.innerHTML = categoryCourses.map(function(course) {
-                        var record = course.record;
-                        var status = record ? record.status : 'not_started';
-                        var statusLabels = { 'not_started': '未開始', 'in_progress': '進行中', 'completed': '已完成', 'failed': '未通過' };
-                        var statusClasses = { 'not_started': 'info', 'in_progress': 'warning', 'completed': 'success', 'failed': 'danger' };
-                        
-                        var actionBtn = '';
-                        if (status === 'not_started') {
-                            actionBtn = '<button class="btn btn-sm btn-primary" onclick="startCourse(\'' + course.id + '\')">開始課程</button>';
-                        } else if (status === 'in_progress') {
-                            actionBtn = '<button class="btn btn-sm btn-warning" onclick="continueCourse(\'' + course.id + '\')">繼續學習</button>';
-                        } else {
-                            actionBtn = '<button class="btn btn-sm btn-secondary" onclick="showCourseDetail(\'' + course.id + '\')">查看</button>';
-                        }
-                        
-                        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:1rem;border-bottom:1px solid var(--border);">' +
-                            '<div><h4 style="margin-bottom:0.25rem;">' + course.title + '</h4>' +
-                            '<p style="color:var(--text-secondary);font-size:0.875rem;">' +
-                            (course.duration_hours ? course.duration_hours + ' 小時 ' : '') +
-                            (course.isRequired ? '<span class="badge badge-danger">必修</span> ' : '<span class="badge badge-info">選修</span> ') +
-                            (course.manager_only ? '<span class="badge badge-warning">僅主管</span>' : '') +
-                            '</p></div>' +
-                            '<div style="display:flex;align-items:center;gap:1rem;">' +
-                            '<span class="badge badge-' + statusClasses[status] + '">' + statusLabels[status] + '</span>' +
-                            actionBtn +
-                            '</div></div>';
-                    }).join('');
+                var actionBtn = '<button class="btn btn-sm btn-secondary" onclick="showCourseDetail(\'' + course.id + '\')">查看</button> ';
+                if (status === 'not_started') {
+                    actionBtn += '<button class="btn btn-sm btn-primary" onclick="startCourse(\'' + course.id + '\')">開始</button>';
+                } else if (status === 'in_progress') {
+                    actionBtn += '<button class="btn btn-sm btn-warning" onclick="showCourseDetail(\'' + course.id + '\')">繼續</button>';
                 }
+                
+                return '<tr>' +
+                    '<td>' + course.title + '</td>' +
+                    '<td>' + course.categoryName + '</td>' +
+                    '<td>' + (course.provider_department || '-') + '</td>' +
+                    '<td>' + (courseTypeLabels[course.course_type] || '實體') + '</td>' +
+                    '<td>' + (course.course_date ? new Date(course.course_date).toLocaleDateString() : '-') + '</td>' +
+                    '<td>' + (course.isRequired ? '<span class="badge badge-danger">必修</span>' : '<span class="badge badge-info">選修</span>') + '</td>' +
+                    '<td><span class="badge badge-' + statusClasses[status] + '">' + statusLabels[status] + '</span></td>' +
+                    '<td>' + actionBtn + '</td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        function filterMyTraining() {
+            var search = document.getElementById('myTrainingSearch').value.toLowerCase();
+            var categoryFilter = document.getElementById('myTrainingCategoryFilter').value;
+            var deptFilter = document.getElementById('myTrainingDeptFilter').value;
+            var statusFilter = document.getElementById('myTrainingStatusFilter').value;
+            
+            var filtered = (window.myTrainingCourses || []).filter(function(course) {
+                var matchSearch = !search || course.title.toLowerCase().includes(search);
+                var matchCategory = !categoryFilter || course.categoryName === categoryFilter;
+                var matchDept = !deptFilter || course.provider_department === deptFilter;
+                var status = course.record ? course.record.status : 'not_started';
+                var matchStatus = !statusFilter || status === statusFilter;
+                return matchSearch && matchCategory && matchDept && matchStatus;
             });
+            renderMyTraining(filtered);
         }
 
         async function startCourse(courseId) {
@@ -763,10 +788,6 @@
                 loadMyCourses();
                 loadDashboardData();
             } catch (err) { alert('開始課程失敗：' + err.message); }
-        }
-
-        async function continueCourse(courseId) {
-            showCourseDetail(courseId);
         }
 
         async function loadMyRecords() {
@@ -882,13 +903,14 @@
         function renderCourses(data) {
             var tbody = document.getElementById('coursesTable');
             if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有課程資料</td></tr>'; return; }
+            var courseTypeLabels = { 'onsite': '實體', 'online_scheduled': '線上(固定)', 'online_self': '線上(自學)' };
             tbody.innerHTML = data.map(function(course) {
                 return '<tr><td>' + course.title + (course.manager_only ? ' <span class="badge badge-warning">僅主管</span>' : '') + '</td>' +
                     '<td>' + (course.course_categories ? course.course_categories.name : '-') + '</td>' +
+                    '<td>' + (course.provider_department || '-') + '</td>' +
+                    '<td>' + (courseTypeLabels[course.course_type] || '實體') + '</td>' +
                     '<td>' + (course.course_date ? new Date(course.course_date).toLocaleDateString() : '-') + '</td>' +
-                    '<td>' + (course.deadline ? new Date(course.deadline).toLocaleDateString() : '-') + '</td>' +
                     '<td>' + (course.is_required ? '<span class="badge badge-danger">必修</span>' : '<span class="badge badge-info">選修</span>') + '</td>' +
-                    '<td><span class="badge badge-' + (course.is_active ? 'success' : 'danger') + '">' + (course.is_active ? '啟用' : '停用') + '</span></td>' +
                     '<td><button class="btn btn-sm btn-secondary" onclick="editCourse(\'' + course.id + '\')">編輯</button> ' +
                     '<button class="btn btn-sm btn-danger" onclick="toggleCourseStatus(\'' + course.id + '\',' + !course.is_active + ')">' + (course.is_active ? '停用' : '啟用') + '</button></td></tr>';
             }).join('');
@@ -1023,32 +1045,79 @@
                 document.getElementById('courseEditId').value = data.id;
                 document.getElementById('courseName').value = data.title;
                 document.getElementById('courseCategory').value = data.category_id || '';
+                document.getElementById('courseProviderDept').value = data.provider_department || '';
+                document.getElementById('courseInstructor').value = data.instructor || '';
+                document.getElementById('courseType').value = data.course_type || 'onsite';
                 document.getElementById('courseDate').value = data.course_date || '';
                 document.getElementById('courseDeadline').value = data.deadline || '';
+                document.getElementById('courseOnlineUrl').value = data.online_url || '';
+                document.getElementById('courseOnlinePassword').value = data.online_password || '';
+                document.getElementById('courseCalendarUrl').value = data.calendar_url || '';
                 document.getElementById('courseDuration').value = data.duration_hours || '';
                 document.getElementById('coursePassingScore').value = data.passing_score || 60;
                 document.getElementById('courseRequired').checked = data.is_required;
                 document.getElementById('courseManagerOnly').checked = data.manager_only || false;
                 document.getElementById('courseDescription').value = data.description || '';
                 document.getElementById('courseContent').value = data.content || '';
+                toggleOnlineFields();
                 showModal('courseModal');
+            }
+        }
+
+        function toggleOnlineFields() {
+            var courseType = document.getElementById('courseType').value;
+            var onlineFields = document.getElementById('onlineFields');
+            if (courseType === 'online_self' || courseType === 'online_scheduled') {
+                onlineFields.style.display = 'block';
+            } else {
+                onlineFields.style.display = 'none';
             }
         }
 
         async function showCourseDetail(id) {
             var { data: course } = await supabase.from('courses').select('*, course_categories(name)').eq('id', id).single();
             if (course) {
+                var courseTypeLabels = { 'onsite': '實體課程', 'online_scheduled': '線上課程（固定日期）', 'online_self': '線上課程（自學）' };
                 document.getElementById('courseDetailTitle').textContent = course.title;
-                document.getElementById('courseDetailContent').innerHTML =
+                
+                var detailHtml = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">' +
                     '<p><strong>分類：</strong>' + (course.course_categories ? course.course_categories.name : '-') + '</p>' +
+                    '<p><strong>提供部門：</strong>' + (course.provider_department || '-') + '</p>' +
+                    '<p><strong>講師：</strong>' + (course.instructor || '-') + '</p>' +
+                    '<p><strong>課程類型：</strong>' + (courseTypeLabels[course.course_type] || '實體課程') + '</p>' +
                     '<p><strong>課程日期：</strong>' + (course.course_date ? new Date(course.course_date).toLocaleDateString() : '-') + '</p>' +
                     '<p><strong>截止日：</strong>' + (course.deadline ? new Date(course.deadline).toLocaleDateString() : '-') + '</p>' +
                     '<p><strong>時數：</strong>' + (course.duration_hours ? course.duration_hours + ' 小時' : '-') + '</p>' +
                     '<p><strong>及格分數：</strong>' + course.passing_score + ' 分</p>' +
                     '<p><strong>必修：</strong>' + (course.is_required ? '是' : '否') + '</p>' +
-                    '<hr style="border-color:var(--border);margin:1rem 0;">' +
-                    '<p><strong>課程說明：</strong></p><p style="color:var(--text-secondary);">' + (course.description || '無說明') + '</p>' +
-                    (course.content ? '<hr style="border-color:var(--border);margin:1rem 0;"><p><strong>課程內容：</strong></p><p style="color:var(--text-secondary);">' + course.content + '</p>' : '');
+                    '</div>';
+                
+                // 線上課程資訊
+                if (course.course_type === 'online_self' || course.course_type === 'online_scheduled') {
+                    detailHtml += '<hr style="border-color:var(--border);margin:1rem 0;">';
+                    detailHtml += '<h4 style="margin-bottom:0.5rem;">🖥️ 線上課程資訊</h4>';
+                    if (course.online_url) {
+                        detailHtml += '<p><strong>課程連結：</strong><a href="' + course.online_url + '" target="_blank" style="color:#60a5fa;">' + course.online_url + '</a></p>';
+                    }
+                    if (course.online_password) {
+                        detailHtml += '<p><strong>課程密碼：</strong><code style="background:var(--bg-dark);padding:0.25rem 0.5rem;border-radius:0.25rem;">' + course.online_password + '</code></p>';
+                    }
+                    if (course.calendar_url) {
+                        detailHtml += '<p><strong>行事曆：</strong><a href="' + course.calendar_url + '" target="_blank" style="color:#60a5fa;">📅 加入行事曆</a></p>';
+                    }
+                }
+                
+                // 課程說明
+                detailHtml += '<hr style="border-color:var(--border);margin:1rem 0;">';
+                detailHtml += '<p><strong>課程說明：</strong></p><p style="color:var(--text-secondary);white-space:pre-wrap;">' + (course.description || '無說明') + '</p>';
+                
+                // 課程內容
+                if (course.content) {
+                    detailHtml += '<hr style="border-color:var(--border);margin:1rem 0;">';
+                    detailHtml += '<p><strong>課程內容/教材：</strong></p><p style="color:var(--text-secondary);white-space:pre-wrap;">' + course.content + '</p>';
+                }
+                
+                document.getElementById('courseDetailContent').innerHTML = detailHtml;
                 showModal('courseDetailModal');
             }
         }
@@ -1140,8 +1209,14 @@
             var courseData = {
                 title: document.getElementById('courseName').value,
                 category_id: document.getElementById('courseCategory').value || null,
+                provider_department: document.getElementById('courseProviderDept').value || null,
+                instructor: document.getElementById('courseInstructor').value || null,
+                course_type: document.getElementById('courseType').value || 'onsite',
                 course_date: document.getElementById('courseDate').value || null,
                 deadline: document.getElementById('courseDeadline').value || null,
+                online_url: document.getElementById('courseOnlineUrl').value || null,
+                online_password: document.getElementById('courseOnlinePassword').value || null,
+                calendar_url: document.getElementById('courseCalendarUrl').value || null,
                 duration_hours: document.getElementById('courseDuration').value || null,
                 passing_score: document.getElementById('coursePassingScore').value || 60,
                 is_required: document.getElementById('courseRequired').checked,
