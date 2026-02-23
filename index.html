@@ -257,6 +257,7 @@
                 <div class="toolbar">
                     <input type="text" class="search-input" id="courseSearch" placeholder="搜尋課程名稱..." oninput="filterCourses()">
                     <select class="filter-select" id="courseCategoryFilter" onchange="filterCourses()"><option value="">全部分類</option><option value="新人訓練">新人訓練</option><option value="一般訓練">一般訓練</option><option value="主管訓練">主管訓練</option></select>
+                    <select class="filter-select" id="courseProviderFilter" onchange="filterCourses()"><option value="">全部提供部門</option><option value="人力資源部">人力資源部</option><option value="財務部">財務部</option><option value="數位部">數位部</option></select>
                 </div>
                 <div class="card"><div class="table-container">
                     <table><thead><tr><th>課程名稱</th><th>分類</th><th>提供部門</th><th>類型</th><th>課程日期</th><th>必修</th><th>操作</th></tr></thead>
@@ -895,7 +896,7 @@
         }
 
         async function loadCourses() {
-            var { data } = await supabase.from('courses').select('*, course_categories(name)').order('created_at', { ascending: false });
+            var { data } = await supabase.from('courses').select('*, course_categories(name)').order('course_date', { ascending: true, nullsFirst: false });
             window.allCourses = data; // 儲存到全域變數供篩選用
             renderCourses(data);
         }
@@ -919,14 +920,15 @@
         function filterCourses() {
             var search = document.getElementById('courseSearch').value.toLowerCase();
             var categoryFilter = document.getElementById('courseCategoryFilter').value;
+            var providerFilter = document.getElementById('courseProviderFilter').value;
             var filtered = (window.allCourses || []).filter(function(course) {
                 var matchSearch = !search || course.title.toLowerCase().includes(search);
                 var matchCategory = !categoryFilter || (course.course_categories && course.course_categories.name === categoryFilter);
-                return matchSearch && matchCategory;
+                var matchProvider = !providerFilter || course.provider_department === providerFilter;
+                return matchSearch && matchCategory && matchProvider;
             });
             renderCourses(filtered);
         }
-
         async function loadAllRecords() {
             var { data } = await supabase.from('training_records').select('*, employees(name, employee_id), courses(title, course_categories(name))').order('updated_at', { ascending: false });
             window.allRecords = data; // 儲存到全域變數供篩選用
