@@ -238,7 +238,7 @@
             <div id="page-team-progress" class="page">
                 <div class="page-header"><h1>👥 部門訓練進度</h1></div>
                 <div class="card"><div class="table-container">
-                    <table><thead><tr><th>員工姓名</th><th>員工編號</th><th>已完成</th><th>進行中</th><th>未開始</th><th>完成率</th></tr></thead>
+                    <thead><tr><th>員工姓名</th><th>員工編號</th><th>必修進度</th><th>選修完成</th><th>必修完成率</th></tr></thead>
                     <tbody id="teamProgressTable"><tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr></tbody></table>
                 </div></div>
             </div>
@@ -865,21 +865,84 @@
 
         async function loadTeamProgress() {
             if (currentUser.role !== 'manager' && currentUser.role !== 'admin') return;
-            var query = supabase.from('employees').select('*, training_records(*)').eq('is_active', true);
+            
+            var query = supabase.from('employees').select('*, training_records(*), departments(name)').eq('is_active', true);
             if (currentUser.role === 'manager') query = query.eq('department_id', currentUser.department_id);
             var { data: employees } = await query;
-            var { data: courses } = await supabase.from('courses').select('*').eq('is_active', true);
-            var totalCourses = courses ? courses.length : 0;
+            
+            var { data: courses } = await supabase.from('courses').select('*, course_categories(name)').eq('is_active', true);
+            
             var tbody = document.getElementById('teamProgressTable');
-            if (!employees || employees.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state">沒有員工資料</td></tr>'; return; }
+            if (!employees || employees.length === 0) { 
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">沒有員工資料</td></tr>'; 
+                return; 
+            }
+            
             tbody.innerHTML = employees.map(function(emp) {
                 var records = emp.training_records || [];
-                var completed = records.filter(function(r) { return r.status === 'completed'; }).length;
-                var inProgress = records.filter(function(r) { return r.status === 'in_progress'; }).length;
-                var notStarted = totalCourses - completed - inProgress;
-                var progress = totalCourses > 0 ? Math.round((completed / totalCourses) * 100) : 0;
-                return '<tr><td>' + emp.name + '</td><td>' + emp.employee_id + '</td><td>' + completed + '</td><td>' + inProgress + '</td><td>' + (notStarted > 0 ? notStarted : 0) + '</td>' +
-                    '<td><div class="progress-bar" style="width:100px;display:inline-block;vertical-align:middle;"><div class="progress-fill" style="width:' + progress + '%"></div></div><span style="margin-left:0.5rem;">' + progress + '%</span></td></tr>';
+                var recordMap = {};
+                records.forEach(function(r) { recordMap[r.course_id] = r; });
+                
+                // 計算該員工可參加的課程（根據角色和新人狀態）
+                var requiredCourses = [];
+                var optionalCourses = [];
+                
+                if (courses) {
+                    courses.forEach(function(course) {
+                        var categoryName = course.course_categories ? course.course_categories.name : '一般訓練';
+                        var canAccess = true;
+                        var isRequired = false;
+                        
+                        // 判斷該員工是否可存取此課程
+                        if (categoryName === '新人訓練') {
+                            canAccess = emp.is_newcomer;
+                            isRequired = emp.is_newcomer && course.is_required;
+                        } else if (categoryName === '一般訓練') {
+                            canAccess = true;
+                            isRequired = course.is_required;
+                        } else if (categoryName === '主管訓練') {
+                            if (course.manager_only) {
+                                canAccess = (emp.role === 'manager' || emp.role === 'admin');
+                            } else {
+                                canAccess = true;
+                            }
+                            isRequired = (emp.role === 'manager' || emp.role === 'admin') && course.is_required;
+                        }
+                        
+                        if (canAccess) {
+                            if (isRequired) {
+                                requiredCourses.push(course);
+                            } else {
+                                optionalCourses.push(course);
+                            }
+                        }
+                    });
+                }
+                
+                // 計算必修完成數
+                var requiredCompleted = 0;
+                requiredCourses.forEach(function(course) {
+                    var record = recordMap[course.id];
+                    if (record && record.status === 'completed') requiredCompleted++;
+                });
+                
+                // 計算選修完成數
+                var optionalCompleted = 0;
+                optionalCourses.forEach(function(course) {
+                    var record = recordMap[course.id];
+                    if (record && record.status === 'completed') optionalCompleted++;
+                });
+                
+                var requiredTotal = requiredCourses.length;
+                var progress = requiredTotal > 0 ? Math.round((requiredCompleted / requiredTotal) * 100) : 100;
+                
+                return '<tr>' +
+                    '<td>' + emp.name + (emp.is_newcomer ? ' <span class="badge badge-info">新人</span>' : '') + '</td>' +
+                    '<td>' + emp.employee_id + '</td>' +
+                    '<td>' + requiredCompleted + '/' + requiredTotal + '</td>' +
+                    '<td>' + optionalCompleted + '</td>' +
+                    '<td><div class="progress-bar" style="width:100px;display:inline-block;vertical-align:middle;"><div class="progress-fill" style="width:' + progress + '%"></div></div><span style="margin-left:0.5rem;">' + progress + '%</span></td>' +
+                    '</tr>';
             }).join('');
         }
 
