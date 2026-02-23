@@ -635,16 +635,33 @@
         async function loadReminders() {
             var reminders = [];
             var today = new Date(); today.setHours(0, 0, 0, 0);
+            
             try {
+                // 讀取提醒設定
+                var { data: settings } = await supabase.from('system_settings').select('*');
+                var settingMap = {};
+                if (settings) {
+                    settings.forEach(function(s) { settingMap[s.setting_key] = s.setting_value; });
+                }
+                
+                var reminderDays = parseInt(settingMap['reminder_before_training_days']) || 3;
+                var absenceEnabled = settingMap['reminder_absence_enabled'] !== 'false';
+                var overdueEnabled = settingMap['reminder_overdue_test_enabled'] !== 'false';
+                var incompleteEnabled = settingMap['reminder_incomplete_required_enabled'] !== 'false';
+                
                 var { data: records } = await supabase.from('training_records').select('*, courses(*)').eq('employee_id', currentUser.id);
-                var { data: courses } = await supabase.from('courses').select('*').eq('is_active', true);
+                var { data: courses } = await supabase.from('courses').select('*, course_categories(name)').eq('is_active', true);
+                var { data: assignments } = await supabase.from('course_assignments').select('*').eq('employee_id', currentUser.id);
                 var { data: attendanceRecords } = await supabase.from('attendance_records').select('*, courses(title)').eq('employee_id', currentUser.id);
                 
                 var recordMap = {};
                 if (records) records.forEach(function(r) { recordMap[r.course_id] = r; });
                 
+                var assignmentMap = {};
+                if (assignments) assignments.forEach(function(a) { assignmentMap[a.course_id] = a; });
+                
                 // 缺席/請假提醒（需補課）
-                if (attendanceRecords) {
+                if (absenceEnabled && attendanceRecords) {
                     attendanceRecords.forEach(function(att) {
                         if ((att.status === 'absent' || att.status === 'leave') && att.makeup_required && !att.makeup_completed) {
                             var statusText = att.status === 'absent' ? '缺席' : '請假';
@@ -656,34 +673,68 @@
                 if (courses) {
                     courses.forEach(function(course) {
                         var record = recordMap[course.id];
+                        var assignment = assignmentMap[course.id];
+                        var categoryName = course.course_categories ? course.course_categories.name : '一般訓練';
+                        
+                        // 判斷是否為我的必修課程
+                        var isMyRequired = false;
+                        var canAccess = true;
+                        
+                        if (assignment) {
+                            if (assignment.assignment_type === 'excluded') return;
+                            isMyRequired = assignment.assignment_type === 'required';
+                        } else {
+                            if (categoryName === '新人訓練') {
+                                canAccess = currentUser.is_newcomer;
+                                isMyRequired = currentUser.is_newcomer && course.is_required;
+                            } else if (categoryName === '一般訓練') {
+                                canAccess = true;
+                                isMyRequired = course.is_required;
+                            } else if (categoryName === '主管訓練') {
+                                if (course.manager_only) {
+                                    canAccess = (currentUser.role === 'manager' || currentUser.role === 'admin');
+                                }
+                                isMyRequired = (currentUser.role === 'manager' || currentUser.role === 'admin') && course.is_required;
+                            }
+                        }
+                        
+                        if (!canAccess) return;
+                        
                         // 課前提醒
                         if (course.course_date) {
                             var courseDate = new Date(course.course_date);
                             var diffDays = Math.ceil((courseDate - today) / (1000 * 60 * 60 * 24));
-                            if (diffDays > 0 && diffDays <= 3) {
+                            if (diffDays > 0 && diffDays <= reminderDays) {
                                 reminders.push({ type: 'upcoming', message: '📅 課程「' + course.title + '」將於 ' + diffDays + ' 天後開始' });
                             }
                         }
+                        
                         // 逾期提醒
-                        if (course.deadline) {
+                        if (overdueEnabled && course.deadline) {
                             var deadline = new Date(course.deadline);
                             if (deadline < today && (!record || record.status !== 'completed')) {
                                 reminders.push({ type: 'overdue', message: '⚠️ 課程「' + course.title + '」已逾期，請盡快完成' });
                             }
                         }
-                        // 必修未完成
-                        if (course.is_required && (!record || record.status !== 'completed')) {
+                        
+                        // 必修未完成提醒
+                        if (incompleteEnabled && isMyRequired && (!record || record.status !== 'completed')) {
                             reminders.push({ type: 'required', message: '📌 必修課程「' + course.title + '」尚未完成' });
                         }
                     });
                 }
+                
                 var remindersSection = document.getElementById('remindersSection');
                 var remindersList = document.getElementById('remindersList');
                 if (reminders.length > 0) {
                     remindersSection.classList.remove('hidden');
                     remindersList.innerHTML = reminders.map(function(r) { return '<div class="reminder-item">' + r.message + '</div>'; }).join('');
-                } else { remindersSection.classList.add('hidden'); }
-            } catch (err) { console.error('Error loading reminders:', err); }
+                } else { 
+                    remindersSection.classList.add('hidden'); 
+                }
+            } catch (err) { 
+                console.error('Error loading reminders:', err); 
+            }
         }
 
         // 資料載入
