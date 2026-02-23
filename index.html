@@ -931,12 +931,15 @@
                 });
                 
                 var requiredTotal = requiredCourses.length;
-                var progress = requiredTotal > 0 ? Math.round((requiredCompleted / requiredTotal) * 100) : 100;
                 
                 // 計算數位部進度
                 var digitalProgress = '';
+                var digitalCompleted = 0;
+                var digitalTotal = 0;
+                
                 if (emp.role === 'manager' || emp.role === 'admin') {
-                    // 主管：計算學分
+                    // 主管：計算學分（算1項）
+                    digitalTotal = 1;
                     var totalCredits = 0;
                     var managerRequiredCredits = 0;
                     courses.forEach(function(course) {
@@ -950,11 +953,16 @@
                             }
                         }
                     });
-                    var creditStatus = totalCredits >= 3 ? 'success' : 'warning';
+                    // 學分 >= 3 且 必修 >= 1 才算完成
+                    if (totalCredits >= 3 && managerRequiredCredits >= 1) {
+                        digitalCompleted = 1;
+                    }
+                    var creditStatus = (totalCredits >= 3 && managerRequiredCredits >= 1) ? 'success' : 'warning';
                     var reqStatus = managerRequiredCredits >= 1 ? '✓' : '✗';
                     digitalProgress = '<span class="badge badge-' + creditStatus + '">' + totalCredits + '/3 學分</span> <small>(必修' + reqStatus + ')</small>';
                 } else {
-                    // 一般員工：三選二
+                    // 一般員工：三選二（算2項）
+                    digitalTotal = 2;
                     var taskCount = 0;
                     // ①數位工具學習（完成任一數位部線上課程）
                     var hasDigitalCourse = false;
@@ -970,9 +978,15 @@
                     // ③流程改善應用
                     if (emp.process_improvement_completed) taskCount++;
                     
+                    digitalCompleted = Math.min(taskCount, 2); // 最多算2項
                     var taskStatus = taskCount >= 2 ? 'success' : 'warning';
                     digitalProgress = '<span class="badge badge-' + taskStatus + '">' + taskCount + '/2 項</span>';
                 }
+                
+                // 計算總必修完成率（含數位部）
+                var totalRequired = requiredTotal + digitalTotal;
+                var totalCompleted = requiredCompleted + digitalCompleted;
+                var progress = totalRequired > 0 ? Math.round((totalCompleted / totalRequired) * 100) : 100;
                 
                 return '<tr>' +
                     '<td>' + emp.name + (emp.is_newcomer ? ' <span class="badge badge-info">新人</span>' : '') + '</td>' +
@@ -984,7 +998,6 @@
                     '</tr>';
             }).join('');
         }
-
         async function loadApplications() {
             var query = supabase.from('training_applications').select('*, employees(name), courses(title)').order('created_at', { ascending: false });
             if (currentUser.role === 'manager') {
