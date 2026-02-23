@@ -1105,7 +1105,16 @@
                         detailHtml += '<p><strong>課程密碼：</strong><code style="background:var(--bg-dark);padding:0.25rem 0.5rem;border-radius:0.25rem;">' + course.online_password + '</code></p>';
                     }
                     if (course.calendar_url) {
-                        detailHtml += '<p><strong>行事曆：</strong><a href="' + course.calendar_url + '" target="_blank" style="color:#60a5fa;">📅 加入行事曆</a></p>';
+                        detailHtml += '<div style="margin-top:1rem;">' +
+                            '<p><strong>📅 課程預約行事曆：</strong></p>' +
+                            '<div style="background:var(--bg-dark);padding:1rem;border-radius:0.5rem;margin:0.5rem 0;">' +
+                            '<p style="color:#f59e0b;font-size:0.875rem;margin-bottom:0.5rem;">⚠️ 預約須知：</p>' +
+                            '<ul style="color:var(--text-secondary);font-size:0.875rem;margin-left:1.5rem;">' +
+                            '<li>最多一次預約三天（三天內看完，留給其他同事觀看時間）</li>' +
+                            '<li>使用帳密登入課程前，請先確認行事曆上沒有其他人正在觀看</li>' +
+                            '</ul></div>' +
+                            '<iframe src="' + course.calendar_url + '" style="border:0;width:100%;height:400px;border-radius:0.5rem;" frameborder="0" scrolling="no"></iframe>' +
+                            '</div>';
                     }
                 }
                 
