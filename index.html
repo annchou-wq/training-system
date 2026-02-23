@@ -297,7 +297,7 @@
                     <select class="filter-select" id="recordStatusFilter" onchange="filterRecords()"><option value="">全部狀態</option><option value="completed">已完成</option><option value="in_progress">進行中</option><option value="failed">未通過</option></select>
                 </div>
                 <div class="card"><div class="table-container">
-                    <table><thead><tr><th>員工姓名</th><th>課程名稱</th><th>分類</th><th>狀態</th><th>分數</th><th>完成日期</th><th>數位案例</th><th>流程改善</th><th>操作</th></tr></thead>
+                    <table><thead><tr><th>員工姓名</th><th>課程名稱</th><th>分類</th><th>狀態</th><th>分數</th><th>完成日期</th><th>操作</th></tr></thead>
                     <tbody id="allRecordsTable"><tr><td colspan="7" class="loading"><div class="spinner"></div></td></tr></tbody></table>
                 </div></div>
             </div>
@@ -417,7 +417,7 @@
                 <div class="form-group"><label>分類 *</label><select id="courseCategory" required><option value="">請選擇分類</option></select></div>
                 <div class="form-group"><label>提供課程部門</label><select id="courseProviderDept"><option value="">請選擇部門</option><option value="人力資源部">人力資源部</option><option value="財務部">財務部</option><option value="數位部">數位部</option></select></div>
                 <div class="form-group"><label>講師</label><input type="text" id="courseInstructor" placeholder="請輸入講師姓名"></div>
-                <div class="form-group"><label>課程類型 *</label><select id="courseType" required onchange="toggleOnlineFields()"><option value="onsite">實體課程</option><option value="online_scheduled">線上課程（固定日期）</option><option value="online_self">線上課程（自學）</option></select></div>
+                <div class="form-group"><label>課程類型 *</label><select id="courseType" required onchange="toggleOnlineFields()"><option value="onsite">實體課程</option><option value="online_scheduled">線上課程（固定日期）</option><option value="online_self">線上課程（自學）</option><option value="report">報告繳交</option></select></div>
                 <div class="form-group"><label>課程日期</label><input type="date" id="courseDate"></div>
                 <div class="form-group"><label>完成截止日</label><input type="date" id="courseDeadline"></div>
                 <div id="onlineFields" style="display:none;">
@@ -851,7 +851,7 @@
             
             var statusLabels = { 'not_started': '未開始', 'in_progress': '進行中', 'completed': '已完成', 'failed': '未通過' };
             var statusClasses = { 'not_started': 'info', 'in_progress': 'warning', 'completed': 'success', 'failed': 'danger' };
-            var courseTypeLabels = { 'onsite': '實體', 'online_scheduled': '線上(固定)', 'online_self': '線上(自學)' };
+            var courseTypeLabels = { 'onsite': '實體', 'online_scheduled': '線上(固定)', 'online_self': '線上(自學)', 'report': '報告繳交' };
             
             tbody.innerHTML = courses.map(function(course) {
                 var record = course.record;
@@ -1043,24 +1043,23 @@
                     var reqStatus = managerRequiredCredits >= 1 ? '✓' : '✗';
                     digitalProgress = '<span class="badge badge-' + creditStatus + '">' + totalCredits + '/3 學分</span> <small>(必修' + reqStatus + ')</small>';
                 } else {
+                    // 一般員工：三選二（算2項）
                     digitalTotal = 2;
                     var taskCount = 0;
-                    var hasDigitalCourse = false;
+                    
+                    // 計算完成的數位部課程/任務數量
                     courses.forEach(function(course) {
                         var record = recordMap[course.id];
-                        if (record && record.status === 'completed' && course.provider_department === '數位部' && (course.course_type === 'online_self' || course.course_type === 'online_scheduled')) {
-                            hasDigitalCourse = true;
+                        if (record && record.status === 'completed' && course.provider_department === '數位部') {
+                            taskCount++;
                         }
                     });
-                    if (hasDigitalCourse) taskCount++;
-                    if (emp.digital_case_sharing_completed) taskCount++;
-                    if (emp.process_improvement_completed) taskCount++;
                     
                     digitalCompleted = Math.min(taskCount, 2);
                     var taskStatus = taskCount >= 2 ? 'success' : 'warning';
-                    digitalProgress = '<span class="badge badge-' + taskStatus + '">' + taskCount + '/2 項</span>';
+                    digitalProgress = '<span class="badge badge-' + taskStatus + '">' + Math.min(taskCount, 2) + '/2 項</span>';
                 }
-                
+                                
                 var totalRequired = requiredTotal + digitalTotal;
                 var totalCompleted = requiredCompleted + digitalCompleted;
                 var progress = totalRequired > 0 ? Math.round((totalCompleted / totalRequired) * 100) : 100;
@@ -1154,7 +1153,7 @@
         function renderCourses(data) {
             var tbody = document.getElementById('coursesTable');
             if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有課程資料</td></tr>'; return; }
-            var courseTypeLabels = { 'onsite': '實體', 'online_scheduled': '線上(固定)', 'online_self': '線上(自學)' };
+            var courseTypeLabels = { 'onsite': '實體', 'online_scheduled': '線上(固定)', 'online_self': '線上(自學)', 'report': '報告繳交' };
             tbody.innerHTML = data.map(function(course) {
                 return '<tr><td>' + course.title + (course.manager_only ? ' <span class="badge badge-warning">僅主管</span>' : '') + '</td>' +
                     '<td>' + (course.course_categories ? course.course_categories.name : '-') + '</td>' +
@@ -1180,14 +1179,14 @@
             renderCourses(filtered);
         }
         async function loadAllRecords() {
-            var { data } = await supabase.from('training_records').select('*, employees(id, name, employee_id, digital_case_sharing_completed, process_improvement_completed), courses(title, course_categories(name))').order('updated_at', { ascending: false });
+            var { data } = await supabase.from('training_records').select('*, employees(id, name, employee_id), courses(title, course_categories(name))').order('updated_at', { ascending: false });
             window.allRecords = data; // 儲存到全域變數供篩選用
             renderAllRecords(data);
         }
 
         function renderAllRecords(data) {
             var tbody = document.getElementById('allRecordsTable');
-            if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="empty-state">沒有訓練紀錄</td></tr>'; return; }
+            if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有訓練紀錄</td></tr>'; return; }
             var statusLabels = { 'not_started': '未開始', 'in_progress': '進行中', 'completed': '已完成', 'failed': '未通過' };
             var statusClasses = { 'not_started': 'info', 'in_progress': 'warning', 'completed': 'success', 'failed': 'danger' };
             tbody.innerHTML = data.map(function(record) {
@@ -1198,8 +1197,6 @@
                     '<td><span class="badge badge-' + statusClasses[record.status] + '">' + statusLabels[record.status] + '</span></td>' +
                     '<td>' + (record.score !== null ? record.score + ' 分' : '-') + '</td>' +
                     '<td>' + (record.completion_date ? new Date(record.completion_date).toLocaleDateString() : '-') + '</td>' +
-                    '<td>' + (emp.digital_case_sharing_completed ? '<span class="badge badge-success">已完成</span>' : '<button class="btn btn-sm btn-secondary" onclick="markDigitalTask(\'' + emp.id + '\', \'digital_case_sharing\')">標示完成</button>') + '</td>' +
-                    '<td>' + (emp.process_improvement_completed ? '<span class="badge badge-success">已完成</span>' : '<button class="btn btn-sm btn-secondary" onclick="markDigitalTask(\'' + emp.id + '\', \'process_improvement\')">標示完成</button>') + '</td>' +
                     '<td><button class="btn btn-sm btn-primary" onclick="showUpdateRecordModal(\'' + record.id + '\',\'' + (emp.name || '') + '\',\'' + (record.courses ? record.courses.title : '') + '\',\'' + record.status + '\',' + record.score + ',\'' + (record.notes || '') + '\',\'' + record.employee_id + '\',\'' + record.course_id + '\')">更新狀態</button></td></tr>';
             }).join('');
         }
@@ -1333,7 +1330,7 @@
         async function showCourseDetail(id) {
             var { data: course } = await supabase.from('courses').select('*, course_categories(name)').eq('id', id).single();
             if (course) {
-                var courseTypeLabels = { 'onsite': '實體課程', 'online_scheduled': '線上課程（固定日期）', 'online_self': '線上課程（自學）' };
+                var courseTypeLabels = { 'onsite': '實體課程', 'online_scheduled': '線上課程（固定日期）', 'online_self': '線上課程（自學）', 'report': '報告繳交' };
                 document.getElementById('courseDetailTitle').textContent = course.title;
                 
                 var detailHtml = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">' +
@@ -1872,30 +1869,6 @@
                 alert('更新失敗：' + err.message);
             }
         });
-
-        async function markDigitalTask(employeeId, taskType) {
-            var taskName = taskType === 'digital_case_sharing' ? '數位案例分享' : '流程改善應用';
-            if (!confirm('確定要標示此員工已完成「' + taskName + '」嗎？')) return;
-            
-            try {
-                var updateData = {};
-                if (taskType === 'digital_case_sharing') {
-                    updateData.digital_case_sharing_completed = true;
-                    updateData.digital_case_sharing_date = new Date().toISOString().split('T')[0];
-                } else {
-                    updateData.process_improvement_completed = true;
-                    updateData.process_improvement_date = new Date().toISOString().split('T')[0];
-                }
-                
-                var { error } = await supabase.from('employees').update(updateData).eq('id', employeeId);
-                if (error) throw error;
-                
-                alert('已標示完成！');
-                loadAllRecords();
-            } catch (err) {
-                alert('標示失敗：' + err.message);
-            }
-        }
 
         var assignCoursesData = [];
         
