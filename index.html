@@ -238,8 +238,8 @@
             <div id="page-team-progress" class="page">
                 <div class="page-header"><h1>👥 部門訓練進度</h1></div>
                 <div class="card"><div class="table-container">
-                    <table><thead><tr><th>員工姓名</th><th>員工編號</th><th>必修進度</th><th>選修完成</th><th>必修完成率</th></tr></thead>
-                    <tbody id="teamProgressTable"><tr><td colspan="5" class="loading"><div class="spinner"></div></td></tr></tbody></table>
+                    <table><thead><tr><th>員工姓名</th><th>員工編號</th><th>必修進度</th><th>選修完成</th><th>數位部進度</th><th>必修完成率</th></tr></thead>
+                    <tbody id="teamProgressTable"><tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr></tbody></table>
                 </div></div>
             </div>
 
@@ -297,7 +297,7 @@
                     <select class="filter-select" id="recordStatusFilter" onchange="filterRecords()"><option value="">全部狀態</option><option value="completed">已完成</option><option value="in_progress">進行中</option><option value="failed">未通過</option></select>
                 </div>
                 <div class="card"><div class="table-container">
-                    <table><thead><tr><th>員工姓名</th><th>課程名稱</th><th>分類</th><th>狀態</th><th>分數</th><th>完成日期</th><th>操作</th></tr></thead>
+                    <table><thead><tr><th>員工姓名</th><th>課程名稱</th><th>分類</th><th>狀態</th><th>分數</th><th>完成日期</th><th>數位案例</th><th>流程改善</th><th>操作</th></tr></thead>
                     <tbody id="allRecordsTable"><tr><td colspan="7" class="loading"><div class="spinner"></div></td></tr></tbody></table>
                 </div></div>
             </div>
@@ -426,6 +426,7 @@
                     <div class="form-group"><label>行事曆連結（Google Calendar 等）</label><input type="url" id="courseCalendarUrl" placeholder="https://calendar.google.com/..."></div>
                 </div>
                 <div class="form-group"><label>課程時數（小時）</label><input type="number" id="courseDuration" step="0.5" min="0" placeholder="例如：2"></div>
+                <div class="form-group"><label>學分數</label><input type="number" id="courseCredits" step="0.5" min="0" placeholder="例如：1.5"></div>
                 <div class="form-group"><label>及格分數</label><input type="number" id="coursePassingScore" min="0" max="100" value="60"></div>
                 <div class="form-group"><label><input type="checkbox" id="courseRequired"> 必修課程</label></div>
                 <div class="form-group"><label><input type="checkbox" id="courseManagerOnly"> 僅限主管（員工無法報名此課程）</label></div>
@@ -874,7 +875,7 @@
             
             var tbody = document.getElementById('teamProgressTable');
             if (!employees || employees.length === 0) { 
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">沒有員工資料</td></tr>'; 
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">沒有員工資料</td></tr>'; 
                 return; 
             }
             
@@ -883,7 +884,6 @@
                 var recordMap = {};
                 records.forEach(function(r) { recordMap[r.course_id] = r; });
                 
-                // 計算該員工可參加的課程（根據角色和新人狀態）
                 var requiredCourses = [];
                 var optionalCourses = [];
                 
@@ -893,7 +893,6 @@
                         var canAccess = true;
                         var isRequired = false;
                         
-                        // 判斷該員工是否可存取此課程
                         if (categoryName === '新人訓練') {
                             canAccess = emp.is_newcomer;
                             isRequired = emp.is_newcomer && course.is_required;
@@ -919,14 +918,12 @@
                     });
                 }
                 
-                // 計算必修完成數
                 var requiredCompleted = 0;
                 requiredCourses.forEach(function(course) {
                     var record = recordMap[course.id];
                     if (record && record.status === 'completed') requiredCompleted++;
                 });
                 
-                // 計算選修完成數
                 var optionalCompleted = 0;
                 optionalCourses.forEach(function(course) {
                     var record = recordMap[course.id];
@@ -936,11 +933,53 @@
                 var requiredTotal = requiredCourses.length;
                 var progress = requiredTotal > 0 ? Math.round((requiredCompleted / requiredTotal) * 100) : 100;
                 
+                // 計算數位部進度
+                var digitalProgress = '';
+                if (emp.role === 'manager' || emp.role === 'admin') {
+                    // 主管：計算學分
+                    var totalCredits = 0;
+                    var managerRequiredCredits = 0;
+                    courses.forEach(function(course) {
+                        var record = recordMap[course.id];
+                        if (record && record.status === 'completed' && course.provider_department === '數位部') {
+                            var credits = parseFloat(course.credit_hours) || 0;
+                            totalCredits += credits;
+                            var categoryName = course.course_categories ? course.course_categories.name : '';
+                            if (categoryName === '主管訓練' && course.is_required) {
+                                managerRequiredCredits += credits;
+                            }
+                        }
+                    });
+                    var creditStatus = totalCredits >= 3 ? 'success' : 'warning';
+                    var reqStatus = managerRequiredCredits >= 1 ? '✓' : '✗';
+                    digitalProgress = '<span class="badge badge-' + creditStatus + '">' + totalCredits + '/3 學分</span> <small>(必修' + reqStatus + ')</small>';
+                } else {
+                    // 一般員工：三選二
+                    var taskCount = 0;
+                    // ①數位工具學習（完成任一數位部線上課程）
+                    var hasDigitalCourse = false;
+                    courses.forEach(function(course) {
+                        var record = recordMap[course.id];
+                        if (record && record.status === 'completed' && course.provider_department === '數位部' && (course.course_type === 'online_self' || course.course_type === 'online_scheduled')) {
+                            hasDigitalCourse = true;
+                        }
+                    });
+                    if (hasDigitalCourse) taskCount++;
+                    // ②數位案例分享
+                    if (emp.digital_case_sharing_completed) taskCount++;
+                    // ③流程改善應用
+                    if (emp.process_improvement_completed) taskCount++;
+                    
+                    var taskStatus = taskCount >= 2 ? 'success' : 'warning';
+                    digitalProgress = '<span class="badge badge-' + taskStatus + '">' + taskCount + '/2 項</span>';
+                }
+                
                 return '<tr>' +
                     '<td>' + emp.name + (emp.is_newcomer ? ' <span class="badge badge-info">新人</span>' : '') + '</td>' +
                     '<td>' + emp.employee_id + '</td>' +
                     '<td>' + requiredCompleted + '/' + requiredTotal + '</td>' +
                     '<td>' + optionalCompleted + '</td>' +
+                    '<td>' + digitalProgress + '</td>' +
                     '<td><div class="progress-bar" style="width:100px;display:inline-block;vertical-align:middle;"><div class="progress-fill" style="width:' + progress + '%"></div></div><span style="margin-left:0.5rem;">' + progress + '%</span></td>' +
                     '</tr>';
             }).join('');
@@ -1050,24 +1089,27 @@
             renderCourses(filtered);
         }
         async function loadAllRecords() {
-            var { data } = await supabase.from('training_records').select('*, employees(name, employee_id), courses(title, course_categories(name))').order('updated_at', { ascending: false });
+            var { data } = await supabase.from('training_records').select('*, employees(id, name, employee_id, digital_case_sharing_completed, process_improvement_completed), courses(title, course_categories(name))').order('updated_at', { ascending: false });
             window.allRecords = data; // 儲存到全域變數供篩選用
             renderAllRecords(data);
         }
 
         function renderAllRecords(data) {
             var tbody = document.getElementById('allRecordsTable');
-            if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有訓練紀錄</td></tr>'; return; }
+            if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="empty-state">沒有訓練紀錄</td></tr>'; return; }
             var statusLabels = { 'not_started': '未開始', 'in_progress': '進行中', 'completed': '已完成', 'failed': '未通過' };
             var statusClasses = { 'not_started': 'info', 'in_progress': 'warning', 'completed': 'success', 'failed': 'danger' };
             tbody.innerHTML = data.map(function(record) {
-                return '<tr><td>' + (record.employees ? record.employees.name : '-') + ' (' + (record.employees ? record.employees.employee_id : '') + ')</td>' +
+                var emp = record.employees || {};
+                return '<tr><td>' + (emp.name || '-') + ' (' + (emp.employee_id || '') + ')</td>' +
                     '<td>' + (record.courses ? record.courses.title : '-') + '</td>' +
                     '<td>' + (record.courses && record.courses.course_categories ? record.courses.course_categories.name : '-') + '</td>' +
                     '<td><span class="badge badge-' + statusClasses[record.status] + '">' + statusLabels[record.status] + '</span></td>' +
                     '<td>' + (record.score !== null ? record.score + ' 分' : '-') + '</td>' +
                     '<td>' + (record.completion_date ? new Date(record.completion_date).toLocaleDateString() : '-') + '</td>' +
-                    '<td><button class="btn btn-sm btn-primary" onclick="showUpdateRecordModal(\'' + record.id + '\',\'' + (record.employees ? record.employees.name : '') + '\',\'' + (record.courses ? record.courses.title : '') + '\',\'' + record.status + '\',' + record.score + ',\'' + (record.notes || '') + '\',\'' + record.employee_id + '\',\'' + record.course_id + '\')">更新狀態</button></td></tr>';
+                    '<td>' + (emp.digital_case_sharing_completed ? '<span class="badge badge-success">已完成</span>' : '<button class="btn btn-sm btn-secondary" onclick="markDigitalTask(\'' + emp.id + '\', \'digital_case_sharing\')">標示完成</button>') + '</td>' +
+                    '<td>' + (emp.process_improvement_completed ? '<span class="badge badge-success">已完成</span>' : '<button class="btn btn-sm btn-secondary" onclick="markDigitalTask(\'' + emp.id + '\', \'process_improvement\')">標示完成</button>') + '</td>' +
+                    '<td><button class="btn btn-sm btn-primary" onclick="showUpdateRecordModal(\'' + record.id + '\',\'' + (emp.name || '') + '\',\'' + (record.courses ? record.courses.title : '') + '\',\'' + record.status + '\',' + record.score + ',\'' + (record.notes || '') + '\',\'' + record.employee_id + '\',\'' + record.course_id + '\')">更新狀態</button></td></tr>';
             }).join('');
         }
 
@@ -1176,6 +1218,7 @@
                 document.getElementById('courseOnlinePassword').value = data.online_password || '';
                 document.getElementById('courseCalendarUrl').value = data.calendar_url || '';
                 document.getElementById('courseDuration').value = data.duration_hours || '';
+                document.getElementById('courseCredits').value = data.credit_hours || '';
                 document.getElementById('coursePassingScore').value = data.passing_score || 60;
                 document.getElementById('courseRequired').checked = data.is_required;
                 document.getElementById('courseManagerOnly').checked = data.manager_only || false;
@@ -1349,6 +1392,7 @@
                 online_password: document.getElementById('courseOnlinePassword').value || null,
                 calendar_url: document.getElementById('courseCalendarUrl').value || null,
                 duration_hours: document.getElementById('courseDuration').value || null,
+                credit_hours: document.getElementById('courseCredits').value || 0,
                 passing_score: document.getElementById('coursePassingScore').value || 60,
                 is_required: document.getElementById('courseRequired').checked,
                 manager_only: document.getElementById('courseManagerOnly').checked,
@@ -1738,6 +1782,30 @@
             }
         });
 
+        async function markDigitalTask(employeeId, taskType) {
+            var taskName = taskType === 'digital_case_sharing' ? '數位案例分享' : '流程改善應用';
+            if (!confirm('確定要標示此員工已完成「' + taskName + '」嗎？')) return;
+            
+            try {
+                var updateData = {};
+                if (taskType === 'digital_case_sharing') {
+                    updateData.digital_case_sharing_completed = true;
+                    updateData.digital_case_sharing_date = new Date().toISOString().split('T')[0];
+                } else {
+                    updateData.process_improvement_completed = true;
+                    updateData.process_improvement_date = new Date().toISOString().split('T')[0];
+                }
+                
+                var { error } = await supabase.from('employees').update(updateData).eq('id', employeeId);
+                if (error) throw error;
+                
+                alert('已標示完成！');
+                loadAllRecords();
+            } catch (err) {
+                alert('標示失敗：' + err.message);
+            }
+        }
+        
         function showAlert(containerId, message, type) {
             var container = document.getElementById(containerId);
             container.innerHTML = '<div class="alert alert-' + type + '">' + message + '</div>';
