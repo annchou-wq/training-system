@@ -64,6 +64,8 @@
         .badge-warning { background: rgba(245,158,11,0.2); color: #f59e0b; }
         .badge-danger { background: rgba(239,68,68,0.2); color: #ef4444; }
         .badge-info { background: rgba(37,99,235,0.2); color: #60a5fa; }
+        .badge-primary { background: rgba(139,92,246,0.2); color: #a78bfa; }
+        .badge-secondary { background: rgba(100,116,139,0.2); color: #94a3b8; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
         .modal.active { display: flex; }
         .modal-content { background: var(--bg-card); border-radius: 1rem; padding: 2rem; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
@@ -138,8 +140,8 @@
             <nav>
                 <ul class="nav-menu">
                     <li><a href="#" data-page="home" class="active">🏠 首頁總覽</a></li>
-                    <li><a href="#" data-page="my-training">📖 我的訓練</a></li>
-                    <li><a href="#" data-page="my-records">📋 訓練紀錄</a></li>
+                    <li class="employee-only"><a href="#" data-page="my-training">📖 我的訓練</a></li>
+                    <li class="employee-only"><a href="#" data-page="my-records">📋 訓練紀錄</a></li>
                     <div class="nav-section manager-only hidden">主管功能</div>
                     <li class="manager-only hidden"><a href="#" data-page="team-progress">👥 部門進度</a></li>
                     <li class="manager-only hidden"><a href="#" data-page="applications">📝 訓練申請</a></li>
@@ -242,10 +244,11 @@
                 <div class="page-header"><h1>👥 部門訓練進度</h1></div>
                 <div class="toolbar">
                     <select class="filter-select" id="teamProgressYearFilter" onchange="loadTeamProgress()"></select>
+                    <select class="filter-select" id="teamProgressDeptFilter" onchange="loadTeamProgress()"><option value="">全部部門</option></select>
                 </div>
                 <div class="card"><div class="table-container">
-                    <table><thead><tr><th>員工姓名</th><th>員工編號</th><th>必修進度</th><th>選修完成</th><th>數位部進度</th><th>必修完成率</th></tr></thead>
-                    <tbody id="teamProgressTable"><tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr></tbody></table>
+                    <table><thead><tr><th>員工姓名</th><th>員工編號</th><th>部門</th><th>必修進度</th><th>選修完成</th><th>數位部進度</th><th>必修完成率</th></tr></thead>
+                    <tbody id="teamProgressTable"><tr><td colspan="7" class="loading"><div class="spinner"></div></td></tr></tbody></table>
                 </div></div>
             </div>
 
@@ -264,7 +267,7 @@
                 <div class="toolbar">
                     <input type="text" class="search-input" id="employeeSearch" placeholder="搜尋員工姓名或編號..." oninput="filterEmployees()">
                     <select class="filter-select" id="employeeDeptFilter" onchange="filterEmployees()"><option value="">全部部門</option></select>
-                    <select class="filter-select" id="employeeRoleFilter" onchange="filterEmployees()"><option value="">全部角色</option><option value="admin">管理者</option><option value="manager">主管</option><option value="employee">員工</option></select>
+                    <select class="filter-select" id="employeeRoleFilter" onchange="filterEmployees()"><option value="">全部角色</option><option value="admin">管理者</option><option value="boss">老闆</option><option value="manager">主管</option><option value="employee">員工</option></select>
                 </div>
                 <div class="card"><div class="table-container">
                     <table><thead><tr><th>員工編號</th><th>姓名</th><th>Email</th><th>部門</th><th>角色</th><th>狀態</th><th>操作</th></tr></thead>
@@ -396,7 +399,7 @@
                 <div class="form-group"><label>Email *</label><input type="email" id="empEmail" required placeholder="請輸入 Email"></div>
                 <div class="form-group"><label>密碼 *</label><input type="password" id="empPassword" placeholder="請輸入密碼"></div>
                 <div class="form-group"><label>部門</label><select id="empDepartment"><option value="">請選擇部門</option></select></div>
-                <div class="form-group"><label>角色</label><select id="empRole"><option value="employee">員工</option><option value="manager">主管</option><option value="admin">管理者</option></select></div>
+                <div class="form-group"><label>角色</label><select id="empRole"><option value="employee">員工</option><option value="manager">主管</option><option value="boss">老闆</option><option value="admin">管理者</option></select></div>
                 <div class="form-group"><label>到職日期</label><input type="date" id="empHireDate"></div>
                 <div class="form-group"><label><input type="checkbox" id="empNewcomer"> 標記為新人（可參加新人訓練）</label></div>
                 <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('employeeModal')">取消</button><button type="submit" class="btn btn-primary">儲存</button></div>
@@ -587,21 +590,26 @@
             document.getElementById('userName').textContent = currentUser.name;
             document.getElementById('userAvatar').textContent = currentUser.name.charAt(0);
             document.getElementById('welcomeName').textContent = currentUser.name;
-            var roleNames = { admin: '管理者', manager: '主管', employee: '員工' };
+            var roleNames = { admin: '管理者', manager: '主管', employee: '員工', boss: '老闆' };
             document.getElementById('userRole').textContent = roleNames[currentUser.role] || '員工';
             
             // 先隱藏所有權限選單
             document.querySelectorAll('.admin-only').forEach(function(el) { el.classList.add('hidden'); });
             document.querySelectorAll('.manager-only').forEach(function(el) { el.classList.add('hidden'); });
+            document.querySelectorAll('.employee-only').forEach(function(el) { el.classList.remove('hidden'); });
             
-            // 根據角色顯示選單（重點修正！）
+            // 根據角色顯示選單
             if (currentUser.role === 'admin') {
                 document.querySelectorAll('.admin-only').forEach(function(el) { el.classList.remove('hidden'); });
                 document.querySelectorAll('.manager-only').forEach(function(el) { el.classList.remove('hidden'); });
             } else if (currentUser.role === 'manager') {
                 document.querySelectorAll('.manager-only').forEach(function(el) { el.classList.remove('hidden'); });
+            } else if (currentUser.role === 'boss') {
+                // 老闆：可看主管功能（部門進度、訓練申請），但不需要修課
+                document.querySelectorAll('.manager-only').forEach(function(el) { el.classList.remove('hidden'); });
+                document.querySelectorAll('.employee-only').forEach(function(el) { el.classList.add('hidden'); });
             }
-            // 員工不顯示任何額外選單
+            // 員工只顯示 employee-only
             
             // 先初始化年度選擇器，再載入資料
             initYearFilters();
@@ -1059,22 +1067,14 @@
             var yearFilter = document.getElementById('myRecordsYearFilter');
             var selectedYear = yearFilter ? yearFilter.value : '';
             
-            console.log('loadMyRecords - selectedYear:', selectedYear);
-            
-            var { data, error } = await supabase.from('training_records').select('*, courses(title, course_year, course_categories(name))').eq('employee_id', currentUser.id).order('updated_at', { ascending: false });
-            
-            console.log('loadMyRecords - raw data:', data);
+            var { data } = await supabase.from('training_records').select('*, courses(title, course_year, course_categories(name))').eq('employee_id', currentUser.id).order('updated_at', { ascending: false });
             
             // 如果有選擇特定年度，篩選該年度的紀錄
             if (selectedYear && data) {
                 data = data.filter(function(record) {
-                    var match = record.courses && record.courses.course_year == selectedYear;
-                    console.log('Record:', record.courses?.title, 'course_year:', record.courses?.course_year, 'match:', match);
-                    return match;
+                    return record.courses && record.courses.course_year == selectedYear;
                 });
             }
-            
-            console.log('loadMyRecords - filtered data:', data);
             
             var tbody = document.getElementById('myRecordsTable');
             if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">目前沒有訓練紀錄</td></tr>'; return; }
@@ -1090,12 +1090,30 @@
         }
 
         async function loadTeamProgress() {
-            if (currentUser.role !== 'manager' && currentUser.role !== 'admin') return;
+            if (currentUser.role !== 'manager' && currentUser.role !== 'admin' && currentUser.role !== 'boss') return;
             
             var selectedYear = getSelectedYear('teamProgressYearFilter');
+            var deptFilter = document.getElementById('teamProgressDeptFilter').value;
             
+            // 載入部門選項（如果還沒載入）
+            var deptSelect = document.getElementById('teamProgressDeptFilter');
+            if (deptSelect.options.length <= 1) {
+                var { data: depts } = await supabase.from('departments').select('*').order('name');
+                if (depts) {
+                    depts.forEach(function(d) {
+                        deptSelect.innerHTML += '<option value="' + d.id + '">' + d.name + '</option>';
+                    });
+                }
+            }
+            
+            // 主管、老闆、管理者都可以看全公司
             var query = supabase.from('employees').select('*, training_records(*), departments(name)').eq('is_active', true);
-            if (currentUser.role === 'manager') query = query.eq('department_id', currentUser.department_id);
+            
+            // 如果有選擇特定部門，則篩選
+            if (deptFilter) {
+                query = query.eq('department_id', deptFilter);
+            }
+            
             var { data: employees } = await query;
             
             // 只載入該年度的課程
@@ -1105,7 +1123,7 @@
             
             var tbody = document.getElementById('teamProgressTable');
             if (!employees || employees.length === 0) { 
-                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">沒有員工資料</td></tr>'; 
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有員工資料</td></tr>'; 
                 return; 
             }
             
@@ -1233,6 +1251,7 @@
                 return '<tr>' +
                     '<td>' + emp.name + (emp.is_newcomer ? ' <span class="badge badge-info">新人</span>' : '') + '</td>' +
                     '<td>' + emp.employee_id + '</td>' +
+                    '<td>' + (emp.departments ? emp.departments.name : '-') + '</td>' +
                     '<td>' + requiredCompleted + '/' + requiredTotal + '</td>' +
                     '<td>' + optionalCompleted + '</td>' +
                     '<td>' + digitalProgress + '</td>' +
@@ -1242,23 +1261,30 @@
         }
         async function loadApplications() {
             var query = supabase.from('training_applications').select('*, employees(name), courses(title)').order('created_at', { ascending: false });
+            // 主管只能看自己部門的申請，老闆和管理者可以看全部
             if (currentUser.role === 'manager') {
                 var { data: teamMembers } = await supabase.from('employees').select('id').eq('department_id', currentUser.department_id);
                 var teamIds = teamMembers ? teamMembers.map(function(m) { return m.id; }) : [];
                 if (teamIds.length > 0) query = query.in('employee_id', teamIds);
             }
+            // boss 和 admin 可以看全部申請
             var { data } = await query;
             var tbody = document.getElementById('applicationsTable');
             if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state">沒有待審核的申請</td></tr>'; return; }
             var statusLabels = { 'pending': '待審核', 'approved': '已核准', 'rejected': '已駁回' };
             var statusClasses = { 'pending': 'warning', 'approved': 'success', 'rejected': 'danger' };
             tbody.innerHTML = data.map(function(app) {
+                // 老闆只能檢視，不能審核
+                var actionBtns = '-';
+                if (app.status === 'pending' && currentUser.role !== 'boss') {
+                    actionBtns = '<button class="btn btn-sm btn-success" onclick="approveApplication(\'' + app.id + '\')">核准</button> <button class="btn btn-sm btn-danger" onclick="rejectApplication(\'' + app.id + '\')">駁回</button>';
+                }
                 return '<tr><td>' + (app.employees ? app.employees.name : '-') + '</td>' +
                     '<td>' + (app.courses ? app.courses.title : app.external_course_name || '-') + '</td>' +
                     '<td>' + (app.training_date ? new Date(app.training_date).toLocaleDateString() : '-') + '</td>' +
                     '<td>' + (app.reason || '-') + '</td>' +
                     '<td><span class="badge badge-' + statusClasses[app.status] + '">' + statusLabels[app.status] + '</span></td>' +
-                    '<td>' + (app.status === 'pending' ? '<button class="btn btn-sm btn-success" onclick="approveApplication(\'' + app.id + '\')">核准</button> <button class="btn btn-sm btn-danger" onclick="rejectApplication(\'' + app.id + '\')">駁回</button>' : '-') + '</td></tr>';
+                    '<td>' + actionBtns + '</td></tr>';
             }).join('');
         }
 
@@ -1271,7 +1297,7 @@
         function renderEmployees(data) {
             var tbody = document.getElementById('employeesTable');
             if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有員工資料</td></tr>'; return; }
-            var roleLabels = { 'admin': '管理者', 'manager': '主管', 'employee': '員工' };
+            var roleLabels = { 'admin': '管理者', 'manager': '主管', 'employee': '員工', 'boss': '老闆' };
             tbody.innerHTML = data.map(function(emp) {
                 return '<tr><td>' + emp.employee_id + '</td><td>' + emp.name + (emp.is_newcomer ? ' <span class="badge badge-info">新人</span>' : '') + '</td><td>' + emp.email + '</td>' +
                     '<td>' + (emp.departments ? emp.departments.name : '-') + '</td>' +
@@ -1314,11 +1340,7 @@
             var yearFilter = document.getElementById('courseYearFilter');
             var selectedYear = yearFilter ? parseInt(yearFilter.value) : currentSelectedYear;
             
-            console.log('loadCourses - selectedYear:', selectedYear);
-            
-            var { data, error } = await supabase.from('courses').select('*, course_categories(name)').eq('course_year', selectedYear).order('course_date', { ascending: true, nullsFirst: false });
-            
-            console.log('loadCourses - data:', data, 'error:', error);
+            var { data } = await supabase.from('courses').select('*, course_categories(name)').eq('course_year', selectedYear).order('course_date', { ascending: true, nullsFirst: false });
             
             window.allCourses = data || [];
             renderCourses(data);
@@ -1818,11 +1840,7 @@
             var yearFilter = document.getElementById('attendanceYearFilter');
             var selectedYear = yearFilter ? parseInt(yearFilter.value) : currentSelectedYear;
             
-            console.log('loadAttendancePage - selectedYear:', selectedYear);
-            
-            var { data: courses, error } = await supabase.from('courses').select('*').eq('is_active', true).eq('course_year', selectedYear).order('title');
-            
-            console.log('loadAttendancePage - courses:', courses, 'error:', error);
+            var { data: courses } = await supabase.from('courses').select('*').eq('is_active', true).eq('course_year', selectedYear).order('title');
             
             var courseFilter = document.getElementById('attendanceCourseFilter');
             courseFilter.innerHTML = '<option value="">選擇課程</option>';
@@ -1861,8 +1879,8 @@
                 return;
             }
             
-            var statusLabels = { 'present': '出席', 'absent': '缺席', 'late': '遲到', 'leave': '請假', 'exempt': '不須參加' };
-            var statusClasses = { 'present': 'success', 'absent': 'danger', 'late': 'warning', 'leave': 'info', 'exempt': 'secondary' };
+            var statusLabels = { 'present': '出席', 'absent': '缺席', 'late': '遲到', 'leave': '請假', 'exempt': '不須參加', 'speaker': '主講人' };
+            var statusClasses = { 'present': 'success', 'absent': 'danger', 'late': 'warning', 'leave': 'info', 'exempt': 'secondary', 'speaker': 'primary' };
             
             tbody.innerHTML = data.map(function(att) {
                 return '<tr>' +
@@ -1941,7 +1959,7 @@
             }
             
             container.innerHTML = '<table style="width:100%;">' +
-                '<thead><tr><th>員工</th><th>部門</th><th style="text-align:center;">出席</th><th style="text-align:center;">缺席</th><th style="text-align:center;">遲到</th><th style="text-align:center;">請假</th><th style="text-align:center;">不須參加</th></tr></thead>' +
+                '<thead><tr><th>員工</th><th>部門</th><th style="text-align:center;">出席</th><th style="text-align:center;">缺席</th><th style="text-align:center;">遲到</th><th style="text-align:center;">請假</th><th style="text-align:center;">不須參加</th><th style="text-align:center;">主講人</th></tr></thead>' +
                 '<tbody>' + employees.map(function(emp) {
                     return '<tr data-employee-id="' + emp.id + '">' +
                         '<td>' + emp.name + (emp.is_newcomer ? ' <span class="badge badge-info">新人</span>' : '') + '</td>' +
@@ -1951,10 +1969,11 @@
                         '<td style="text-align:center;"><input type="radio" name="att_' + emp.id + '" value="late"></td>' +
                         '<td style="text-align:center;"><input type="radio" name="att_' + emp.id + '" value="leave"></td>' +
                         '<td style="text-align:center;"><input type="radio" name="att_' + emp.id + '" value="exempt"></td>' +
+                        '<td style="text-align:center;"><input type="radio" name="att_' + emp.id + '" value="speaker"></td>' +
                         '</tr>';
                 }).join('') + '</tbody></table>' +
                 '<p style="color:var(--text-secondary);margin-top:1rem;font-size:0.875rem;">📋 課程分類：' + categoryName + 
-                (course.is_required ? ' | ⚠️ 必修課程，缺席者需補課' : '') + '</p>';
+                (course.is_required ? ' | ⚠️ 必修課程，缺席者需補課' : '') + ' | 🎤 主講人不計入出席，建議另行排除該課程</p>';
         }
 
         document.getElementById('takeAttendanceForm').addEventListener('submit', async function(e) {
