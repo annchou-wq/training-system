@@ -134,10 +134,6 @@
             <div class="sidebar-header">
                 <h2>📚 教育訓練系統</h2>
                 <p>Training Management</p>
-                <div style="margin-top:1rem;">
-                    <label style="font-size:0.75rem;color:var(--text-secondary);">📅 選擇年度</label>
-                    <select id="globalYearFilter" class="filter-select" style="width:100%;margin-top:0.25rem;" onchange="onGlobalYearChange()"></select>
-                </div>
             </div>
             <nav>
                 <ul class="nav-menu">
@@ -170,7 +166,10 @@
         <main class="main-content">
             <!-- Home Page -->
             <div id="page-home" class="page active">
-                <div class="page-header"><h1>👋 歡迎回來，<span id="welcomeName">使用者</span></h1><span id="currentYearDisplay" style="font-size:1.25rem;color:var(--primary);"></span></div>
+                <div class="page-header">
+                    <h1>👋 歡迎回來，<span id="welcomeName">使用者</span></h1>
+                    <select class="filter-select" id="globalYearFilter" onchange="changeGlobalYear()" style="font-size:1rem;font-weight:600;"></select>
+                </div>
                 <div id="remindersSection" class="hidden">
                     <div class="reminder-box">
                         <h4>🔔 待辦提醒</h4>
@@ -216,7 +215,7 @@
 
             <!-- My Training Page -->
             <div id="page-my-training" class="page">
-                <div class="page-header"><h1>📖 我的訓練課程</h1></div>
+                <div class="page-header"><h1>📖 我的訓練課程</h1><select class="filter-select" id="myTrainingYearFilter" onchange="loadMyCourses()" style="font-size:1rem;"></select></div>
                 <div class="toolbar">
                     <input type="text" class="search-input" id="myTrainingSearch" placeholder="搜尋課程名稱..." oninput="filterMyTraining()">
                     <select class="filter-select" id="myTrainingCategoryFilter" onchange="filterMyTraining()"><option value="">全部分類</option><option value="新人訓練">新人訓練</option><option value="一般訓練">一般訓練</option><option value="主管訓練">主管訓練</option></select>
@@ -231,7 +230,7 @@
 
             <!-- My Records Page -->
             <div id="page-my-records" class="page">
-                <div class="page-header"><h1>📋 我的訓練紀錄</h1><button class="btn btn-secondary" onclick="exportMyRecords()">📥 匯出紀錄</button></div>
+                <div class="page-header"><h1>📋 我的訓練紀錄</h1><div style="display:flex;gap:1rem;"><select class="filter-select" id="myRecordsYearFilter" onchange="loadMyRecords()"></select><button class="btn btn-secondary" onclick="exportMyRecords()">📥 匯出紀錄</button></div></div>
                 <div class="card"><div class="table-container">
                     <table><thead><tr><th>課程名稱</th><th>分類</th><th>狀態</th><th>分數</th><th>完成日期</th></tr></thead>
                     <tbody id="myRecordsTable"><tr><td colspan="5" class="loading"><div class="spinner"></div></td></tr></tbody></table>
@@ -241,6 +240,9 @@
             <!-- Team Progress Page -->
             <div id="page-team-progress" class="page">
                 <div class="page-header"><h1>👥 部門訓練進度</h1></div>
+                <div class="toolbar">
+                    <select class="filter-select" id="teamProgressYearFilter" onchange="loadTeamProgress()"></select>
+                </div>
                 <div class="card"><div class="table-container">
                     <table><thead><tr><th>員工姓名</th><th>員工編號</th><th>必修進度</th><th>選修完成</th><th>數位部進度</th><th>必修完成率</th></tr></thead>
                     <tbody id="teamProgressTable"><tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr></tbody></table>
@@ -281,16 +283,15 @@
 
             <!-- Courses Page -->
             <div id="page-courses" class="page">
-                <div class="page-header"><h1>📚 課程管理</h1><button class="btn btn-primary" onclick="showAddCourseModal()">➕ 新增課程</button></div>
+                <div class="page-header"><h1>📚 課程管理</h1><div style="display:flex;gap:1rem;"><select class="filter-select" id="courseYearFilter" onchange="loadCourses()" style="font-size:1rem;"></select><button class="btn btn-primary" onclick="showAddCourseModal()">➕ 新增課程</button></div></div>
                 <div class="toolbar">
                     <input type="text" class="search-input" id="courseSearch" placeholder="搜尋課程名稱..." oninput="filterCourses()">
-                    <select class="filter-select" id="courseYearFilter" onchange="filterCourses()"></select>
                     <select class="filter-select" id="courseCategoryFilter" onchange="filterCourses()"><option value="">全部分類</option><option value="新人訓練">新人訓練</option><option value="一般訓練">一般訓練</option><option value="主管訓練">主管訓練</option></select>
                     <select class="filter-select" id="courseProviderFilter" onchange="filterCourses()"><option value="">全部提供部門</option><option value="人力資源部">人力資源部</option><option value="財務部">財務部</option><option value="數位部">數位部</option></select>
                 </div>
                 <div class="card"><div class="table-container">
-                    <table><thead><tr><th>課程名稱</th><th>年度</th><th>分類</th><th>提供部門</th><th>類型</th><th>課程日期</th><th>必修</th><th>操作</th></tr></thead>
-                    <tbody id="coursesTable"><tr><td colspan="8" class="loading"><div class="spinner"></div></td></tr></tbody></table>
+                    <table><thead><tr><th>課程名稱</th><th>分類</th><th>提供部門</th><th>類型</th><th>課程日期</th><th>必修</th><th>操作</th></tr></thead>
+                    <tbody id="coursesTable"><tr><td colspan="7" class="loading"><div class="spinner"></div></td></tr></tbody></table>
                 </div></div>
             </div>
 
@@ -299,6 +300,7 @@
                 <div class="page-header"><h1>📊 所有訓練紀錄</h1><button class="btn btn-secondary" onclick="exportAllRecords()">📥 匯出全部</button></div>
                 <div class="toolbar">
                     <input type="text" class="search-input" id="recordSearch" placeholder="搜尋員工或課程..." oninput="filterRecords()">
+                    <select class="filter-select" id="recordYearFilter" onchange="filterRecords()"></select>
                     <select class="filter-select" id="recordStatusFilter" onchange="filterRecords()"><option value="">全部狀態</option><option value="completed">已完成</option><option value="in_progress">進行中</option><option value="failed">未通過</option></select>
                 </div>
                 <div class="card"><div class="table-container">
@@ -311,6 +313,7 @@
             <div id="page-attendance" class="page">
                 <div class="page-header"><h1>📋 出席管理</h1><button class="btn btn-primary" onclick="showTakeAttendanceModal()">✅ 進行點名</button></div>
                 <div class="toolbar">
+                    <select class="filter-select" id="attendanceYearFilter" onchange="loadAttendancePage()"></select>
                     <select class="filter-select" id="attendanceCourseFilter" onchange="loadAttendanceRecords()"><option value="">選擇課程</option></select>
                     <input type="date" class="search-input" id="attendanceDateFilter" onchange="loadAttendanceRecords()" style="flex:none;width:auto;">
                 </div>
@@ -418,8 +421,8 @@
             <div class="modal-header"><h2 id="courseModalTitle">新增課程</h2><button class="modal-close" onclick="closeModal('courseModal')">&times;</button></div>
             <form id="courseForm">
                 <input type="hidden" id="courseEditId">
-                <div class="form-group"><label>課程名稱 *</label><input type="text" id="courseName" required placeholder="請輸入課程名稱"></div>
                 <div class="form-group"><label>課程年度 *</label><select id="courseYear" required></select></div>
+                <div class="form-group"><label>課程名稱 *</label><input type="text" id="courseName" required placeholder="請輸入課程名稱"></div>
                 <div class="form-group"><label>分類 *</label><select id="courseCategory" required><option value="">請選擇分類</option></select></div>
                 <div class="form-group"><label>提供課程部門</label><select id="courseProviderDept"><option value="">請選擇部門</option><option value="人力資源部">人力資源部</option><option value="財務部">財務部</option><option value="數位部">數位部</option></select></div>
                 <div class="form-group"><label>講師</label><input type="text" id="courseInstructor" placeholder="請輸入講師姓名"></div>
@@ -600,82 +603,12 @@
             }
             // 員工不顯示任何額外選單
             
+            // 先初始化年度選擇器，再載入資料
             initYearFilters();
-            loadDashboardData();
             loadDepartments();
             loadCategories();
+            loadDashboardData();
             loadReminders();
-        }
-        
-        // ========================================
-        // 全域年度功能
-        // ========================================
-        var currentYear = new Date().getFullYear();
-        var selectedYear = currentYear;
-        
-        function initYearFilters() {
-            var years = [];
-            for (var y = 2026; y <= 2036; y++) {
-                years.push(y);
-            }
-            
-            var yearOptions = years.map(function(y) {
-                return '<option value="' + y + '"' + (y === currentYear ? ' selected' : '') + '>' + y + ' 年</option>';
-            }).join('');
-            
-            // 全域年度選擇器
-            var globalFilter = document.getElementById('globalYearFilter');
-            if (globalFilter) {
-                globalFilter.innerHTML = yearOptions;
-                globalFilter.value = currentYear;
-            }
-            
-            // 課程管理年度篩選
-            var courseYearFilter = document.getElementById('courseYearFilter');
-            if (courseYearFilter) {
-                courseYearFilter.innerHTML = '<option value="">全部年度</option>' + yearOptions;
-                courseYearFilter.value = currentYear;
-            }
-            
-            // 課程表單年度選擇
-            var courseYearSelect = document.getElementById('courseYear');
-            if (courseYearSelect) {
-                courseYearSelect.innerHTML = yearOptions;
-                courseYearSelect.value = currentYear;
-            }
-            
-            // 指派課程年度篩選
-            var assignYearFilter = document.getElementById('assignYearFilter');
-            if (assignYearFilter) {
-                assignYearFilter.innerHTML = yearOptions;
-                assignYearFilter.value = currentYear;
-            }
-            
-            selectedYear = currentYear;
-            updateYearDisplay();
-        }
-        
-        function onGlobalYearChange() {
-            selectedYear = parseInt(document.getElementById('globalYearFilter').value);
-            updateYearDisplay();
-            
-            // 重新載入當前頁面資料
-            var activePage = document.querySelector('.page.active');
-            if (activePage) {
-                var pageId = activePage.id.replace('page-', '');
-                loadPageData(pageId);
-            }
-        }
-        
-        function updateYearDisplay() {
-            var display = document.getElementById('currentYearDisplay');
-            if (display) {
-                display.textContent = '📅 ' + selectedYear + ' 年度';
-            }
-        }
-        
-        function getSelectedYear() {
-            return selectedYear || currentYear;
         }
 
         // 頁面導覽
@@ -819,15 +752,16 @@
         // 資料載入
         async function loadDashboardData() {
             try {
-                var year = getSelectedYear();
+                var selectedYear = getSelectedYear('globalYearFilter');
+                
                 var { data: records } = await supabase.from('training_records').select('*').eq('employee_id', currentUser.id);
-                var { data: courses } = await supabase.from('courses').select('*, course_categories(name)').eq('is_active', true).eq('course_year', year);
-                var { data: assignments } = await supabase.from('course_assignments').select('*').eq('employee_id', currentUser.id).eq('assignment_year', year);
+                var { data: courses } = await supabase.from('courses').select('*, course_categories(name)').eq('is_active', true).eq('course_year', selectedYear);
+                var { data: assignments } = await supabase.from('course_assignments').select('*').eq('employee_id', currentUser.id).eq('assignment_year', selectedYear);
                 
                 var assignmentMap = {};
                 if (assignments) assignments.forEach(function(a) { assignmentMap[a.course_id] = a; });
                 
-                // 過濾出我可參加的課程
+                // 過濾出我可參加的課程（該年度）
                 var accessibleCourses = [];
                 if (courses) {
                     courses.forEach(function(course) {
@@ -883,6 +817,86 @@
             } catch (err) { console.error('Error loading dashboard:', err); }
         }
 
+        // ========================================
+        // 年度篩選功能
+        // ========================================
+        var currentSelectedYear = new Date().getFullYear();
+        
+        function initYearFilters() {
+            var years = [];
+            for (var y = 2026; y <= 2035; y++) {
+                years.push(y);
+            }
+            
+            var currentYear = new Date().getFullYear();
+            if (currentYear < 2026) currentYear = 2026;
+            currentSelectedYear = currentYear;
+            
+            var defaultYearOptions = years.map(function(y) {
+                return '<option value="' + y + '"' + (y === currentYear ? ' selected' : '') + '>' + y + ' 年</option>';
+            }).join('');
+            
+            var allYearOptions = '<option value="">全部年度</option>' + defaultYearOptions;
+            
+            // 全域年度選擇（首頁）
+            var globalFilter = document.getElementById('globalYearFilter');
+            if (globalFilter) globalFilter.innerHTML = defaultYearOptions;
+            
+            // 我的訓練
+            var myTrainingFilter = document.getElementById('myTrainingYearFilter');
+            if (myTrainingFilter) myTrainingFilter.innerHTML = defaultYearOptions;
+            
+            // 我的紀錄
+            var myRecordsFilter = document.getElementById('myRecordsYearFilter');
+            if (myRecordsFilter) myRecordsFilter.innerHTML = allYearOptions;
+            
+            // 部門進度
+            var teamProgressFilter = document.getElementById('teamProgressYearFilter');
+            if (teamProgressFilter) teamProgressFilter.innerHTML = defaultYearOptions;
+            
+            // 課程管理
+            var courseFilter = document.getElementById('courseYearFilter');
+            if (courseFilter) courseFilter.innerHTML = defaultYearOptions;
+            
+            // 課程表單年度
+            var courseYearInput = document.getElementById('courseYear');
+            if (courseYearInput) courseYearInput.innerHTML = defaultYearOptions;
+            
+            // 所有紀錄
+            var recordFilter = document.getElementById('recordYearFilter');
+            if (recordFilter) recordFilter.innerHTML = allYearOptions;
+            
+            // 出席管理
+            var attendanceFilter = document.getElementById('attendanceYearFilter');
+            if (attendanceFilter) attendanceFilter.innerHTML = defaultYearOptions;
+            
+            // 指派課程年度
+            var assignFilter = document.getElementById('assignYearFilter');
+            if (assignFilter) assignFilter.innerHTML = defaultYearOptions;
+        }
+
+        function getSelectedYear(filterId) {
+            var filter = document.getElementById(filterId);
+            return filter ? (filter.value || currentSelectedYear) : currentSelectedYear;
+        }
+        
+        function changeGlobalYear() {
+            currentSelectedYear = parseInt(document.getElementById('globalYearFilter').value) || new Date().getFullYear();
+            
+            // 同步更新其他年度選擇器
+            var yearFilters = ['myTrainingYearFilter', 'myRecordsYearFilter', 'teamProgressYearFilter', 'courseYearFilter', 'attendanceYearFilter'];
+            yearFilters.forEach(function(id) {
+                var filter = document.getElementById(id);
+                if (filter && filter.querySelector('option[value="' + currentSelectedYear + '"]')) {
+                    filter.value = currentSelectedYear;
+                }
+            });
+            
+            // 重新載入首頁數據
+            loadDashboardData();
+            loadReminders();
+        }
+
         async function loadDepartments() {
             var { data } = await supabase.from('departments').select('*').order('name');
             departments = data || [];
@@ -908,10 +922,11 @@
         }
 
         async function loadMyCourses() {
-            var year = getSelectedYear();
-            var { data: courses } = await supabase.from('courses').select('*, course_categories(name)').eq('is_active', true).eq('course_year', year).order('course_date', { ascending: true, nullsFirst: false });
+            var selectedYear = getSelectedYear('myTrainingYearFilter');
+            
+            var { data: courses } = await supabase.from('courses').select('*, course_categories(name)').eq('is_active', true).eq('course_year', selectedYear).order('course_date', { ascending: true, nullsFirst: false });
             var { data: records } = await supabase.from('training_records').select('*').eq('employee_id', currentUser.id);
-            var { data: assignments } = await supabase.from('course_assignments').select('*').eq('employee_id', currentUser.id).eq('assignment_year', year);
+            var { data: assignments } = await supabase.from('course_assignments').select('*').eq('employee_id', currentUser.id).eq('assignment_year', selectedYear);
             
             var recordMap = {};
             if (records) records.forEach(function(r) { recordMap[r.course_id] = r; });
@@ -919,7 +934,7 @@
             var assignmentMap = {};
             if (assignments) assignments.forEach(function(a) { assignmentMap[a.course_id] = a; });
             
-            // 篩選可存取的課程
+            // 篩選可存取的課程（該年度）
             var accessibleCourses = [];
             if (courses) {
                 courses.forEach(function(course) {
@@ -1041,7 +1056,26 @@
         }
 
         async function loadMyRecords() {
-            var { data } = await supabase.from('training_records').select('*, courses(title, course_categories(name))').eq('employee_id', currentUser.id).order('updated_at', { ascending: false });
+            var yearFilter = document.getElementById('myRecordsYearFilter');
+            var selectedYear = yearFilter ? yearFilter.value : '';
+            
+            console.log('loadMyRecords - selectedYear:', selectedYear);
+            
+            var { data, error } = await supabase.from('training_records').select('*, courses(title, course_year, course_categories(name))').eq('employee_id', currentUser.id).order('updated_at', { ascending: false });
+            
+            console.log('loadMyRecords - raw data:', data);
+            
+            // 如果有選擇特定年度，篩選該年度的紀錄
+            if (selectedYear && data) {
+                data = data.filter(function(record) {
+                    var match = record.courses && record.courses.course_year == selectedYear;
+                    console.log('Record:', record.courses?.title, 'course_year:', record.courses?.course_year, 'match:', match);
+                    return match;
+                });
+            }
+            
+            console.log('loadMyRecords - filtered data:', data);
+            
             var tbody = document.getElementById('myRecordsTable');
             if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">目前沒有訓練紀錄</td></tr>'; return; }
             var statusLabels = { 'not_started': '未開始', 'in_progress': '進行中', 'completed': '已完成', 'failed': '未通過' };
@@ -1058,14 +1092,16 @@
         async function loadTeamProgress() {
             if (currentUser.role !== 'manager' && currentUser.role !== 'admin') return;
             
-            var year = getSelectedYear();
+            var selectedYear = getSelectedYear('teamProgressYearFilter');
             
             var query = supabase.from('employees').select('*, training_records(*), departments(name)').eq('is_active', true);
             if (currentUser.role === 'manager') query = query.eq('department_id', currentUser.department_id);
             var { data: employees } = await query;
             
-            var { data: courses } = await supabase.from('courses').select('*, course_categories(name)').eq('is_active', true).eq('course_year', year);
-            var { data: allAssignments } = await supabase.from('course_assignments').select('*').eq('assignment_year', year);
+            // 只載入該年度的課程
+            var { data: courses } = await supabase.from('courses').select('*, course_categories(name)').eq('is_active', true).eq('course_year', selectedYear);
+            // 只載入該年度的指派
+            var { data: allAssignments } = await supabase.from('course_assignments').select('*').eq('assignment_year', selectedYear);
             
             var tbody = document.getElementById('teamProgressTable');
             if (!employees || employees.length === 0) { 
@@ -1076,9 +1112,10 @@
             tbody.innerHTML = employees.map(function(emp) {
                 var records = emp.training_records || [];
                 var recordMap = {};
-                records.forEach(function(r) { recordMap[r.course_id] = r; });
+                records.forEach(function(r) { 
+                    recordMap[r.course_id] = r;
+                });
                 
-                // 取得該員工的指派（該年度）
                 var assignmentMap = {};
                 if (allAssignments) {
                     allAssignments.forEach(function(a) {
@@ -1096,7 +1133,6 @@
                         var categoryName = course.course_categories ? course.course_categories.name : '一般訓練';
                         var assignment = assignmentMap[course.id];
                         
-                        // 如果有個別指派
                         if (assignment) {
                             if (assignment.assignment_type === 'excluded') return;
                             if (assignment.assignment_type === 'required') {
@@ -1107,7 +1143,6 @@
                             return;
                         }
                         
-                        // 用預設規則
                         var canAccess = true;
                         var isRequired = false;
                         
@@ -1150,7 +1185,6 @@
                 
                 var requiredTotal = requiredCourses.length;
                 
-                // 計算數位部進度
                 var digitalProgress = '';
                 var digitalCompleted = 0;
                 var digitalTotal = 0;
@@ -1177,11 +1211,9 @@
                     var reqStatus = managerRequiredCredits >= 1 ? '✓' : '✗';
                     digitalProgress = '<span class="badge badge-' + creditStatus + '">' + totalCredits + '/3 學分</span> <small>(必修' + reqStatus + ')</small>';
                 } else {
-                    // 一般員工：三選二（算2項）
                     digitalTotal = 2;
                     var taskCount = 0;
                     
-                    // 計算完成的數位部課程/任務數量
                     courses.forEach(function(course) {
                         var record = recordMap[course.id];
                         if (record && record.status === 'completed' && course.provider_department === '數位部') {
@@ -1279,25 +1311,25 @@
         }
 
         async function loadCourses() {
-            var { data } = await supabase.from('courses').select('*, course_categories(name)').order('course_year', { ascending: false }).order('course_date', { ascending: true, nullsFirst: false });
-            window.allCourses = data;
+            var yearFilter = document.getElementById('courseYearFilter');
+            var selectedYear = yearFilter ? parseInt(yearFilter.value) : currentSelectedYear;
             
-            // 初始化課程管理年度篩選
-            var courseYearFilter = document.getElementById('courseYearFilter');
-            if (courseYearFilter && !courseYearFilter.value) {
-                courseYearFilter.value = getSelectedYear();
-            }
+            console.log('loadCourses - selectedYear:', selectedYear);
             
-            filterCourses();
+            var { data, error } = await supabase.from('courses').select('*, course_categories(name)').eq('course_year', selectedYear).order('course_date', { ascending: true, nullsFirst: false });
+            
+            console.log('loadCourses - data:', data, 'error:', error);
+            
+            window.allCourses = data || [];
+            renderCourses(data);
         }
 
         function renderCourses(data) {
             var tbody = document.getElementById('coursesTable');
-            if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="empty-state">沒有課程資料</td></tr>'; return; }
+            if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有課程資料</td></tr>'; return; }
             var courseTypeLabels = { 'onsite': '實體', 'online_scheduled': '線上(固定)', 'online_self': '線上(自學)', 'report': '報告繳交' };
             tbody.innerHTML = data.map(function(course) {
                 return '<tr><td>' + course.title + (course.manager_only ? ' <span class="badge badge-warning">僅主管</span>' : '') + '</td>' +
-                    '<td>' + (course.course_year || '-') + '</td>' +
                     '<td>' + (course.course_categories ? course.course_categories.name : '-') + '</td>' +
                     '<td>' + (course.provider_department || '-') + '</td>' +
                     '<td>' + (courseTypeLabels[course.course_type] || '實體') + '</td>' +
@@ -1310,27 +1342,20 @@
 
         function filterCourses() {
             var search = document.getElementById('courseSearch').value.toLowerCase();
-            var yearFilter = document.getElementById('courseYearFilter').value;
             var categoryFilter = document.getElementById('courseCategoryFilter').value;
             var providerFilter = document.getElementById('courseProviderFilter').value;
             var filtered = (window.allCourses || []).filter(function(course) {
                 var matchSearch = !search || course.title.toLowerCase().includes(search);
-                var matchYear = !yearFilter || course.course_year == yearFilter;
                 var matchCategory = !categoryFilter || (course.course_categories && course.course_categories.name === categoryFilter);
                 var matchProvider = !providerFilter || course.provider_department === providerFilter;
-                return matchSearch && matchYear && matchCategory && matchProvider;
+                return matchSearch && matchCategory && matchProvider;
             });
             renderCourses(filtered);
         }
         async function loadAllRecords() {
-            var year = getSelectedYear();
             var { data } = await supabase.from('training_records').select('*, employees(id, name, employee_id), courses(title, course_year, course_categories(name))').order('updated_at', { ascending: false });
-            // 篩選該年度的課程紀錄
-            var filtered = (data || []).filter(function(r) {
-                return r.courses && r.courses.course_year == year;
-            });
-            window.allRecords = filtered;
-            renderAllRecords(filtered);
+            window.allRecords = data; // 儲存到全域變數供篩選用
+            renderAllRecords(data);
         }
 
         function renderAllRecords(data) {
@@ -1352,6 +1377,7 @@
 
         function filterRecords() {
             var search = document.getElementById('recordSearch').value.toLowerCase();
+            var yearFilter = document.getElementById('recordYearFilter').value;
             var statusFilter = document.getElementById('recordStatusFilter').value;
             var filtered = (window.allRecords || []).filter(function(record) {
                 var empName = record.employees ? record.employees.name.toLowerCase() : '';
@@ -1359,7 +1385,11 @@
                 var courseName = record.courses ? record.courses.title.toLowerCase() : '';
                 var matchSearch = !search || empName.includes(search) || empId.includes(search) || courseName.includes(search);
                 var matchStatus = !statusFilter || record.status === statusFilter;
-                return matchSearch && matchStatus;
+                var matchYear = true;
+                if (yearFilter && record.courses) {
+                    matchYear = record.courses.course_year == yearFilter;
+                }
+                return matchSearch && matchStatus && matchYear;
             });
             renderAllRecords(filtered);
         }
@@ -1436,7 +1466,6 @@
             document.getElementById('courseModalTitle').textContent = '新增課程';
             document.getElementById('courseForm').reset();
             document.getElementById('courseEditId').value = '';
-            document.getElementById('courseYear').value = getSelectedYear();
             showModal('courseModal');
         }
 
@@ -1445,8 +1474,8 @@
             if (data) {
                 document.getElementById('courseModalTitle').textContent = '編輯課程';
                 document.getElementById('courseEditId').value = data.id;
+                document.getElementById('courseYear').value = data.course_year || new Date().getFullYear();
                 document.getElementById('courseName').value = data.title;
-                document.getElementById('courseYear').value = data.course_year || getSelectedYear();
                 document.getElementById('courseCategory').value = data.category_id || '';
                 document.getElementById('courseProviderDept').value = data.provider_department || '';
                 document.getElementById('courseInstructor').value = data.instructor || '';
@@ -1620,8 +1649,8 @@
             e.preventDefault();
             var editId = document.getElementById('courseEditId').value;
             var courseData = {
+                course_year: parseInt(document.getElementById('courseYear').value) || new Date().getFullYear(),
                 title: document.getElementById('courseName').value,
-                course_year: parseInt(document.getElementById('courseYear').value) || getSelectedYear(),
                 category_id: document.getElementById('courseCategory').value || null,
                 provider_department: document.getElementById('courseProviderDept').value || null,
                 instructor: document.getElementById('courseInstructor').value || null,
@@ -1786,17 +1815,24 @@
         // 出席管理功能
         // ========================================
         async function loadAttendancePage() {
-            // 載入課程下拉選單
-            var { data: courses } = await supabase.from('courses').select('*').eq('is_active', true).order('title');
+            var yearFilter = document.getElementById('attendanceYearFilter');
+            var selectedYear = yearFilter ? parseInt(yearFilter.value) : currentSelectedYear;
+            
+            console.log('loadAttendancePage - selectedYear:', selectedYear);
+            
+            var { data: courses, error } = await supabase.from('courses').select('*').eq('is_active', true).eq('course_year', selectedYear).order('title');
+            
+            console.log('loadAttendancePage - courses:', courses, 'error:', error);
+            
             var courseFilter = document.getElementById('attendanceCourseFilter');
             courseFilter.innerHTML = '<option value="">選擇課程</option>';
-            if (courses) {
+            if (courses && courses.length > 0) {
                 courses.forEach(function(c) {
                     courseFilter.innerHTML += '<option value="' + c.id + '">' + c.title + '</option>';
                 });
             }
-            // 不設定預設日期，讓使用者可以看到所有日期的紀錄
             document.getElementById('attendanceDateFilter').value = '';
+            document.getElementById('attendanceTable').innerHTML = '<tr><td colspan="7" class="empty-state">請選擇課程查看出席紀錄</td></tr>';
         }
 
         async function loadAttendanceRecords() {
@@ -2028,13 +2064,6 @@
             document.getElementById('assignEmployeeId').value = employeeId;
             document.getElementById('assignEmployeeName').textContent = employeeName;
             document.getElementById('assignCourseFilter').value = '';
-            
-            // 設定年度篩選預設值
-            var assignYearFilter = document.getElementById('assignYearFilter');
-            if (assignYearFilter) {
-                assignYearFilter.value = getSelectedYear();
-            }
-            
             showModal('assignCoursesModal');
             await loadAssignCourses(employeeId);
         }
@@ -2043,16 +2072,16 @@
             var tbody = document.getElementById('assignCoursesTable');
             tbody.innerHTML = '<tr><td colspan="5" class="loading"><div class="spinner"></div></td></tr>';
             
-            var year = document.getElementById('assignYearFilter').value || getSelectedYear();
+            var selectedYear = getSelectedYear('assignYearFilter');
             
             // 取得員工資料
             var { data: emp } = await supabase.from('employees').select('*').eq('id', employeeId).single();
             
-            // 取得該年度課程
-            var { data: courses } = await supabase.from('courses').select('*, course_categories(name)').eq('is_active', true).eq('course_year', year).order('title');
+            // 取得該年度的課程
+            var { data: courses } = await supabase.from('courses').select('*, course_categories(name)').eq('is_active', true).eq('course_year', selectedYear).order('title');
             
             // 取得該員工該年度的指派紀錄
-            var { data: assignments } = await supabase.from('course_assignments').select('*').eq('employee_id', employeeId).eq('assignment_year', year);
+            var { data: assignments } = await supabase.from('course_assignments').select('*').eq('employee_id', employeeId).eq('assignment_year', selectedYear);
             var assignmentMap = {};
             if (assignments) {
                 assignments.forEach(function(a) { assignmentMap[a.course_id] = a; });
@@ -2162,21 +2191,21 @@
         
         async function assignCourse(courseId, assignmentType) {
             var employeeId = document.getElementById('assignEmployeeId').value;
-            var year = document.getElementById('assignYearFilter').value || getSelectedYear();
+            var selectedYear = getSelectedYear('assignYearFilter');
             
             try {
-                // 先刪除該員工該課程該年度的舊指派
+                // 先刪除舊的指派（因為 unique constraint 可能包含年度）
                 await supabase.from('course_assignments').delete()
                     .eq('employee_id', employeeId)
                     .eq('course_id', courseId)
-                    .eq('assignment_year', year);
+                    .eq('assignment_year', selectedYear);
                 
-                // 新增指派
+                // 新增新的指派
                 var { error } = await supabase.from('course_assignments').insert({
                     employee_id: employeeId,
                     course_id: courseId,
                     assignment_type: assignmentType,
-                    assignment_year: parseInt(year),
+                    assignment_year: selectedYear,
                     assigned_by: currentUser.id,
                     assigned_at: new Date().toISOString()
                 });
@@ -2190,13 +2219,13 @@
         
         async function removeAssignment(courseId) {
             var employeeId = document.getElementById('assignEmployeeId').value;
-            var year = document.getElementById('assignYearFilter').value || getSelectedYear();
+            var selectedYear = getSelectedYear('assignYearFilter');
             
             try {
                 var { error } = await supabase.from('course_assignments').delete()
                     .eq('employee_id', employeeId)
                     .eq('course_id', courseId)
-                    .eq('assignment_year', year);
+                    .eq('assignment_year', selectedYear);
                 
                 if (error) throw error;
                 await loadAssignCourses(employeeId);
