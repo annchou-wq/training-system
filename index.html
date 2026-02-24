@@ -237,6 +237,9 @@
             <!-- Team Progress Page -->
             <div id="page-team-progress" class="page">
                 <div class="page-header"><h1>👥 部門訓練進度</h1></div>
+                <div class="toolbar">
+                    <select class="filter-select" id="teamProgressYearFilter" onchange="loadTeamProgress()"></select>
+                </div>
                 <div class="card"><div class="table-container">
                     <table><thead><tr><th>員工姓名</th><th>員工編號</th><th>必修進度</th><th>選修完成</th><th>數位部進度</th><th>必修完成率</th></tr></thead>
                     <tbody id="teamProgressTable"><tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr></tbody></table>
@@ -294,6 +297,7 @@
                 <div class="page-header"><h1>📊 所有訓練紀錄</h1><button class="btn btn-secondary" onclick="exportAllRecords()">📥 匯出全部</button></div>
                 <div class="toolbar">
                     <input type="text" class="search-input" id="recordSearch" placeholder="搜尋員工或課程..." oninput="filterRecords()">
+                    <select class="filter-select" id="recordYearFilter" onchange="filterRecords()"></select>
                     <select class="filter-select" id="recordStatusFilter" onchange="filterRecords()"><option value="">全部狀態</option><option value="completed">已完成</option><option value="in_progress">進行中</option><option value="failed">未通過</option></select>
                 </div>
                 <div class="card"><div class="table-container">
@@ -306,6 +310,7 @@
             <div id="page-attendance" class="page">
                 <div class="page-header"><h1>📋 出席管理</h1><button class="btn btn-primary" onclick="showTakeAttendanceModal()">✅ 進行點名</button></div>
                 <div class="toolbar">
+                    <select class="filter-select" id="attendanceYearFilter" onchange="loadAttendancePage()"></select>
                     <select class="filter-select" id="attendanceCourseFilter" onchange="loadAttendanceRecords()"><option value="">選擇課程</option></select>
                     <input type="date" class="search-input" id="attendanceDateFilter" onchange="loadAttendanceRecords()" style="flex:none;width:auto;">
                 </div>
@@ -597,6 +602,7 @@
             loadDepartments();
             loadCategories();
             loadReminders();
+            initYearFilters();
         }
 
         // 頁面導覽
@@ -803,6 +809,39 @@
             } catch (err) { console.error('Error loading dashboard:', err); }
         }
 
+        // ========================================
+        // 年度篩選功能
+        // ========================================
+        function initYearFilters() {
+            var currentYear = new Date().getFullYear();
+            var years = [];
+            for (var y = currentYear; y >= currentYear - 5; y--) {
+                years.push(y);
+            }
+            
+            var yearOptions = '<option value="">全部年度</option>' + years.map(function(y) {
+                return '<option value="' + y + '"' + (y === currentYear ? ' selected' : '') + '>' + y + ' 年</option>';
+            }).join('');
+            
+            var defaultYearOptions = years.map(function(y) {
+                return '<option value="' + y + '"' + (y === currentYear ? ' selected' : '') + '>' + y + ' 年</option>';
+            }).join('');
+            
+            var teamProgressFilter = document.getElementById('teamProgressYearFilter');
+            if (teamProgressFilter) teamProgressFilter.innerHTML = defaultYearOptions;
+            
+            var recordFilter = document.getElementById('recordYearFilter');
+            if (recordFilter) recordFilter.innerHTML = yearOptions;
+            
+            var attendanceFilter = document.getElementById('attendanceYearFilter');
+            if (attendanceFilter) attendanceFilter.innerHTML = defaultYearOptions;
+        }
+
+        function getSelectedYear(filterId) {
+            var filter = document.getElementById(filterId);
+            return filter ? filter.value : '';
+        }
+
         async function loadDepartments() {
             var { data } = await supabase.from('departments').select('*').order('name');
             departments = data || [];
@@ -977,6 +1016,8 @@
         async function loadTeamProgress() {
             if (currentUser.role !== 'manager' && currentUser.role !== 'admin') return;
             
+            var selectedYear = getSelectedYear('teamProgressYearFilter') || new Date().getFullYear();
+            
             var query = supabase.from('employees').select('*, training_records(*), departments(name)').eq('is_active', true);
             if (currentUser.role === 'manager') query = query.eq('department_id', currentUser.department_id);
             var { data: employees } = await query;
@@ -993,9 +1034,17 @@
             tbody.innerHTML = employees.map(function(emp) {
                 var records = emp.training_records || [];
                 var recordMap = {};
-                records.forEach(function(r) { recordMap[r.course_id] = r; });
+                records.forEach(function(r) { 
+                    if (r.completion_date) {
+                        var completionYear = new Date(r.completion_date).getFullYear();
+                        if (completionYear == selectedYear) {
+                            recordMap[r.course_id] = r; 
+                        }
+                    } else if (r.status === 'in_progress') {
+                        recordMap[r.course_id] = r;
+                    }
+                });
                 
-                // 取得該員工的指派
                 var assignmentMap = {};
                 if (allAssignments) {
                     allAssignments.forEach(function(a) {
@@ -1013,7 +1062,6 @@
                         var categoryName = course.course_categories ? course.course_categories.name : '一般訓練';
                         var assignment = assignmentMap[course.id];
                         
-                        // 如果有個別指派
                         if (assignment) {
                             if (assignment.assignment_type === 'excluded') return;
                             if (assignment.assignment_type === 'required') {
@@ -1024,7 +1072,6 @@
                             return;
                         }
                         
-                        // 用預設規則
                         var canAccess = true;
                         var isRequired = false;
                         
@@ -1067,7 +1114,6 @@
                 
                 var requiredTotal = requiredCourses.length;
                 
-                // 計算數位部進度
                 var digitalProgress = '';
                 var digitalCompleted = 0;
                 var digitalTotal = 0;
@@ -1094,11 +1140,9 @@
                     var reqStatus = managerRequiredCredits >= 1 ? '✓' : '✗';
                     digitalProgress = '<span class="badge badge-' + creditStatus + '">' + totalCredits + '/3 學分</span> <small>(必修' + reqStatus + ')</small>';
                 } else {
-                    // 一般員工：三選二（算2項）
                     digitalTotal = 2;
                     var taskCount = 0;
                     
-                    // 計算完成的數位部課程/任務數量
                     courses.forEach(function(course) {
                         var record = recordMap[course.id];
                         if (record && record.status === 'completed' && course.provider_department === '數位部') {
@@ -1254,6 +1298,7 @@
 
         function filterRecords() {
             var search = document.getElementById('recordSearch').value.toLowerCase();
+            var yearFilter = document.getElementById('recordYearFilter').value;
             var statusFilter = document.getElementById('recordStatusFilter').value;
             var filtered = (window.allRecords || []).filter(function(record) {
                 var empName = record.employees ? record.employees.name.toLowerCase() : '';
@@ -1261,7 +1306,14 @@
                 var courseName = record.courses ? record.courses.title.toLowerCase() : '';
                 var matchSearch = !search || empName.includes(search) || empId.includes(search) || courseName.includes(search);
                 var matchStatus = !statusFilter || record.status === statusFilter;
-                return matchSearch && matchStatus;
+                var matchYear = true;
+                if (yearFilter && record.completion_date) {
+                    var recordYear = new Date(record.completion_date).getFullYear();
+                    matchYear = recordYear == yearFilter;
+                } else if (yearFilter && !record.completion_date) {
+                    matchYear = false;
+                }
+                return matchSearch && matchStatus && matchYear;
             });
             renderAllRecords(filtered);
         }
@@ -1685,17 +1737,25 @@
         // 出席管理功能
         // ========================================
         async function loadAttendancePage() {
-            // 載入課程下拉選單
+            var selectedYear = getSelectedYear('attendanceYearFilter') || new Date().getFullYear();
+            
             var { data: courses } = await supabase.from('courses').select('*').eq('is_active', true).order('title');
             var courseFilter = document.getElementById('attendanceCourseFilter');
             courseFilter.innerHTML = '<option value="">選擇課程</option>';
             if (courses) {
                 courses.forEach(function(c) {
-                    courseFilter.innerHTML += '<option value="' + c.id + '">' + c.title + '</option>';
+                    if (c.course_date) {
+                        var courseYear = new Date(c.course_date).getFullYear();
+                        if (courseYear == selectedYear) {
+                            courseFilter.innerHTML += '<option value="' + c.id + '">' + c.title + '</option>';
+                        }
+                    } else {
+                        courseFilter.innerHTML += '<option value="' + c.id + '">' + c.title + '</option>';
+                    }
                 });
             }
-            // 不設定預設日期，讓使用者可以看到所有日期的紀錄
             document.getElementById('attendanceDateFilter').value = '';
+            document.getElementById('attendanceTable').innerHTML = '<tr><td colspan="7" class="empty-state">請選擇課程查看出席紀錄</td></tr>';
         }
 
         async function loadAttendanceRecords() {
