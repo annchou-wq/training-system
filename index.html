@@ -1225,9 +1225,11 @@
                     if (totalCredits >= 3 && managerRequiredCredits >= 1) {
                         digitalCompleted = 1;
                     }
-                    var creditStatus = (totalCredits >= 3 && managerRequiredCredits >= 1) ? 'success' : 'warning';
-                    var reqStatus = managerRequiredCredits >= 1 ? '✓' : '✗';
-                    digitalProgress = '<span class="badge badge-' + creditStatus + '">' + totalCredits + '/3 學分</span> <small>(必修' + reqStatus + ')</small>';
+           var creditStatus = (totalCredits >= 3 && managerRequiredCredits >= 1) ? 'success' : 'warning';
+           var leadershipStatus = managerRequiredCredits >= 1 
+                    ? '<span style="color:#10b981;">🟢 領導課程 ✓</span>' 
+                    : '<span style="color:#ef4444;">🔴 缺領導課程</span>';
+                digitalProgress = '<span class="badge badge-' + creditStatus + '">' + totalCredits + '/3 學分</span> <small>' + leadershipStatus + '</small>';
                 } else {
                     digitalTotal = 2;
                     var taskCount = 0;
