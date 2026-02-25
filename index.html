@@ -430,7 +430,7 @@
             <div class="modal-header"><h2>🔑 請設定新密碼</h2></div>
             <p style="color:var(--text-secondary);margin-bottom:1rem;">首次登入或密碼已重設，請設定您的新密碼。</p>
             <form id="forceChangePasswordForm">
-                <div class="form-group"><label>新密碼</label><input type="password" id="forceNewPassword" required placeholder="請輸入新密碼（至少4個字元）"></div>
+                <div class="form-group"><label>新密碼</label><input type="password" id="forceNewPassword" required placeholder="請輸入新密碼" minlength="6" pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$"><small style="color:var(--text-secondary);font-size:0.75rem;">至少6碼，含大小寫及數字</small></div>
                 <div class="form-group"><label>確認新密碼</label><input type="password" id="forceConfirmPassword" required placeholder="請再次輸入新密碼"></div>
                 <div class="modal-footer"><button type="submit" class="btn btn-primary" style="width:100%;">確認設定</button></div>
             </form>
@@ -445,7 +445,7 @@
                 <div class="form-group"><label>員工編號 *</label><input type="text" id="empId" required placeholder="例如：EMP001"></div>
                 <div class="form-group"><label>姓名 *</label><input type="text" id="empName" required placeholder="請輸入姓名"></div>
                 <div class="form-group"><label>Email *</label><input type="email" id="empEmail" required placeholder="請輸入 Email"></div>
-                <div class="form-group"><label>密碼 *</label><input type="password" id="empPassword" placeholder="請輸入密碼"></div>
+                <div class="form-group"><label>密碼 *</label><input type="password" id="empPassword" placeholder="請輸入密碼" minlength="6" pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$"></div>
                 <div class="form-group"><label>部門</label><select id="empDepartment"><option value="">請選擇部門</option></select></div>
                 <div class="form-group"><label>角色</label><select id="empRole"><option value="employee">員工</option><option value="manager">主管</option><option value="boss">老闆</option><option value="admin">管理者</option></select></div>
                 <div class="form-group"><label>到職日期</label><input type="date" id="empHireDate"></div>
@@ -1910,7 +1910,8 @@
             var newPwd = document.getElementById('forceNewPassword').value;
             var confirmPwd = document.getElementById('forceConfirmPassword').value;
             if (newPwd !== confirmPwd) { alert('新密碼與確認密碼不一致！'); return; }
-            if (newPwd.length < 4) { alert('新密碼至少需要 4 個字元！'); return; }
+            var pwdRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/;
+            if (!pwdRegex.test(newPwd)) { alert('密碼需至少6碼，且包含大寫、小寫字母及數字'); return; }
             try {
                 var { error } = await supabase.from('employees').update({ password_hash: newPwd, must_change_password: false }).eq('id', currentUser.id);
                 if (error) throw error;
