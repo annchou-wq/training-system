@@ -1192,7 +1192,7 @@
             }
             
             // 主管、老闆、管理者都可以看全公司
-            var query = supabase.from('employees').select('*, training_records(*), departments(name)').eq('is_active', true);
+            var query = supabase.from('employees').select('*, training_records(*), departments(name)').eq('is_active', true).neq('role', 'boss');
             
             // 如果有選擇特定部門，則篩選
             if (deptFilter) {
