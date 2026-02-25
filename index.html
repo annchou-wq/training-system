@@ -216,7 +216,7 @@
                         <h4 style="color:#10b981;margin-bottom:0.75rem;">📎 相關表單下載</h4>
                         
                         <div style="background:var(--bg-card);padding:0.75rem;border-radius:0.375rem;border-left:3px solid #10b981;margin-bottom:0.75rem;">
-                            <div style="color:#10b981;font-weight:500;margin-bottom:0.5rem;">📝 完成線上課程後須提交（員工選①、主管皆適用）</div>
+                            <div style="color:#10b981;font-weight:500;margin-bottom:0.5rem;font-size:0.875rem;">📝 完成線上課程後須提交（員工選①、主管皆適用）</div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.875rem;">
                                 <div style="color:var(--text-secondary);">
                                     <span>• 教育訓練心得報告</span>
@@ -1134,12 +1134,9 @@
                 var actionBtn = '<button class="btn btn-sm btn-secondary" onclick="showCourseDetail(\'' + course.id + '\')">查看</button> ';
                 if (status === 'not_started') {
                     actionBtn += '<button class="btn btn-sm btn-primary" onclick="startCourse(\'' + course.id + '\')">開始</button>';
-                } else if (status === 'in_progress') {
-                    actionBtn += '<button class="btn btn-sm btn-warning" onclick="showCourseDetail(\'' + course.id + '\')">繼續</button>';
-                    // 如果是進行中且沒有分數，可以取消
-                    if (record && record.score === null) {
-                        actionBtn += ' <button class="btn btn-sm btn-danger" onclick="cancelCourse(\'' + record.id + '\', \'' + course.title.replace(/'/g, "\\'") + '\')">取消</button>';
-                    }
+                } else if (status === 'in_progress' && record && record.score === null) {
+                    // 進行中且沒有分數，可以取消
+                    actionBtn += '<button class="btn btn-sm btn-danger" onclick="cancelCourse(\'' + record.id + '\', \'' + course.title.replace(/'/g, "\\'") + '\')">取消</button>';
                 }
                 
                 return '<tr>' +
