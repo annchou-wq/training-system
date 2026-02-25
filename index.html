@@ -300,11 +300,18 @@
 
             <!-- All Records Page -->
             <div id="page-all-records" class="page">
-                <div class="page-header"><h1>📊 所有訓練紀錄</h1><button class="btn btn-secondary" onclick="exportAllRecords()">📥 匯出全部</button></div>
+                <div class="page-header"><h1>📊 所有訓練紀錄</h1>
+                    <div style="display:flex;gap:0.5rem;">
+                        <button class="btn btn-secondary" onclick="exportAllRecords()">📥 匯出全部</button>
+                        <button class="btn btn-success" onclick="exportCourseRecords()" id="btnExportCourse" style="display:none;">📤 匯出此課程</button>
+                        <button class="btn btn-primary" onclick="showImportRecordsModal()">📥 匯入更新</button>
+                    </div>
+                </div>
                 <div class="toolbar">
                     <input type="text" class="search-input" id="recordSearch" placeholder="搜尋員工或課程..." oninput="filterRecords()">
-                    <select class="filter-select" id="recordYearFilter" onchange="filterRecords()"></select>
-                    <select class="filter-select" id="recordStatusFilter" onchange="filterRecords()"><option value="">全部狀態</option><option value="completed">已完成</option><option value="in_progress">進行中</option><option value="failed">未通過</option></select>
+                    <select class="filter-select" id="recordYearFilter" onchange="loadRecordCourseFilter();filterRecords()"></select>
+                    <select class="filter-select" id="recordCourseFilter" onchange="filterRecords()"><option value="">全部課程</option></select>
+                    <select class="filter-select" id="recordStatusFilter" onchange="filterRecords()"><option value="">全部狀態</option><option value="completed">已完成</option><option value="in_progress">進行中</option><option value="not_started">未開始</option><option value="failed">未通過</option></select>
                 </div>
                 <div class="card"><div class="table-container">
                     <table><thead><tr><th>員工姓名</th><th>課程名稱</th><th>分類</th><th>狀態</th><th>分數</th><th>完成日期</th><th>操作</th></tr></thead>
@@ -528,6 +535,34 @@
                 <div class="form-group"><label>備註</label><textarea id="makeupNotes" rows="2" placeholder="選填"></textarea></div>
                 <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('makeupModal')">取消</button><button type="submit" class="btn btn-success">確認已完成補課</button></div>
             </form>
+        </div>
+    </div>
+
+    <div id="importRecordsModal" class="modal">
+        <div class="modal-content" style="max-width:600px;">
+            <div class="modal-header"><h2>📥 匯入訓練紀錄</h2><button class="modal-close" onclick="closeModal('importRecordsModal')">&times;</button></div>
+            <div class="alert alert-warning" style="margin-bottom:1rem;">
+                <strong>📋 使用說明：</strong><br>
+                1. 先用「匯出此課程」下載 CSV 檔案<br>
+                2. 用 Excel 編輯「狀態」和「分數」欄位<br>
+                3. 狀態請填：completed / in_progress / not_started / failed<br>
+                4. 儲存為 CSV 格式後上傳
+            </div>
+            <div class="form-group">
+                <label>選擇 CSV 檔案</label>
+                <input type="file" id="importFile" accept=".csv" class="form-group" style="padding:0.5rem;">
+            </div>
+            <div id="importPreview" style="display:none;margin:1rem 0;">
+                <h4 style="margin-bottom:0.5rem;">預覽（前 5 筆）：</h4>
+                <div class="table-container" style="max-height:200px;overflow-y:auto;">
+                    <table><thead id="importPreviewHead"></thead><tbody id="importPreviewBody"></tbody></table>
+                </div>
+                <p id="importPreviewCount" style="margin-top:0.5rem;color:var(--text-secondary);"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('importRecordsModal')">取消</button>
+                <button type="button" class="btn btn-primary" onclick="executeImportRecords()" id="btnExecuteImport" disabled>確認匯入</button>
+            </div>
         </div>
     </div>
 
@@ -1384,9 +1419,23 @@
             renderCourses(filtered);
         }
         async function loadAllRecords() {
-            var { data } = await supabase.from('training_records').select('*, employees(id, name, employee_id), courses(title, course_year, course_categories(name))').order('updated_at', { ascending: false });
+            var { data } = await supabase.from('training_records').select('*, employees(id, name, employee_id), courses(id, title, course_year, course_categories(name))').order('updated_at', { ascending: false });
             window.allRecords = data; // 儲存到全域變數供篩選用
+            loadRecordCourseFilter();
             renderAllRecords(data);
+        }
+
+        async function loadRecordCourseFilter() {
+            var yearFilter = document.getElementById('recordYearFilter').value;
+            var selectedYear = yearFilter || currentSelectedYear;
+            var { data: courses } = await supabase.from('courses').select('id, title').eq('is_active', true).eq('course_year', selectedYear).order('title');
+            var courseSelect = document.getElementById('recordCourseFilter');
+            courseSelect.innerHTML = '<option value="">全部課程</option>';
+            if (courses) {
+                courses.forEach(function(c) {
+                    courseSelect.innerHTML += '<option value="' + c.id + '">' + c.title + '</option>';
+                });
+            }
         }
 
         function renderAllRecords(data) {
@@ -1409,7 +1458,9 @@
         function filterRecords() {
             var search = document.getElementById('recordSearch').value.toLowerCase();
             var yearFilter = document.getElementById('recordYearFilter').value;
+            var courseFilter = document.getElementById('recordCourseFilter').value;
             var statusFilter = document.getElementById('recordStatusFilter').value;
+            
             var filtered = (window.allRecords || []).filter(function(record) {
                 var empName = record.employees ? record.employees.name.toLowerCase() : '';
                 var empId = record.employees ? record.employees.employee_id.toLowerCase() : '';
@@ -1420,9 +1471,136 @@
                 if (yearFilter && record.courses) {
                     matchYear = record.courses.course_year == yearFilter;
                 }
-                return matchSearch && matchStatus && matchYear;
+                var matchCourse = !courseFilter || (record.courses && record.courses.id === courseFilter);
+                return matchSearch && matchStatus && matchYear && matchCourse;
             });
+            
+            // 顯示/隱藏「匯出此課程」按鈕
+            var btnExportCourse = document.getElementById('btnExportCourse');
+            if (courseFilter) {
+                btnExportCourse.style.display = 'inline-flex';
+            } else {
+                btnExportCourse.style.display = 'none';
+            }
+            
+            window.filteredRecords = filtered;
             renderAllRecords(filtered);
+        }
+
+        // 匯出特定課程紀錄
+        function exportCourseRecords() {
+            var courseFilter = document.getElementById('recordCourseFilter');
+            var courseName = courseFilter.options[courseFilter.selectedIndex].text;
+            var data = (window.filteredRecords || []).map(function(r) {
+                return {
+                    '紀錄ID': r.id,
+                    '員工編號': r.employees ? r.employees.employee_id : '',
+                    '員工姓名': r.employees ? r.employees.name : '',
+                    '課程ID': r.course_id,
+                    '課程名稱': r.courses ? r.courses.title : '',
+                    '狀態': r.status,
+                    '分數': r.score !== null ? r.score : '',
+                    '完成日期': r.completion_date ? r.completion_date.split('T')[0] : ''
+                };
+            });
+            if (data.length === 0) {
+                alert('沒有紀錄可匯出');
+                return;
+            }
+            exportToCSV(data, '訓練紀錄_' + courseName);
+        }
+
+        // 匯入相關功能
+        var importData = [];
+        
+        function showImportRecordsModal() {
+            document.getElementById('importFile').value = '';
+            document.getElementById('importPreview').style.display = 'none';
+            document.getElementById('btnExecuteImport').disabled = true;
+            importData = [];
+            showModal('importRecordsModal');
+        }
+        
+        document.getElementById('importFile').addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            
+            var reader = new FileReader();
+            reader.onload = function(event) {
+                var csv = event.target.result;
+                var lines = csv.split('\n');
+                var headers = lines[0].split(',').map(function(h) { return h.trim().replace(/"/g, ''); });
+                
+                importData = [];
+                for (var i = 1; i < lines.length; i++) {
+                    if (!lines[i].trim()) continue;
+                    var values = lines[i].split(',').map(function(v) { return v.trim().replace(/"/g, ''); });
+                    var row = {};
+                    headers.forEach(function(h, idx) { row[h] = values[idx] || ''; });
+                    importData.push(row);
+                }
+                
+                // 顯示預覽
+                document.getElementById('importPreview').style.display = 'block';
+                document.getElementById('importPreviewHead').innerHTML = '<tr>' + headers.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr>';
+                document.getElementById('importPreviewBody').innerHTML = importData.slice(0, 5).map(function(row) {
+                    return '<tr>' + headers.map(function(h) { return '<td>' + (row[h] || '-') + '</td>'; }).join('') + '</tr>';
+                }).join('');
+                document.getElementById('importPreviewCount').textContent = '共 ' + importData.length + ' 筆紀錄';
+                document.getElementById('btnExecuteImport').disabled = false;
+            };
+            reader.readAsText(file);
+        });
+        
+        async function executeImportRecords() {
+            if (importData.length === 0) {
+                alert('沒有資料可匯入');
+                return;
+            }
+            
+            var successCount = 0;
+            var errorCount = 0;
+            
+            for (var i = 0; i < importData.length; i++) {
+                var row = importData[i];
+                var recordId = row['紀錄ID'];
+                var status = row['狀態'];
+                var score = row['分數'];
+                
+                if (!recordId) {
+                    errorCount++;
+                    continue;
+                }
+                
+                var updateData = {
+                    status: status,
+                    score: score ? parseInt(score) : null,
+                    updated_at: new Date().toISOString()
+                };
+                
+                if (status === 'completed' && !row['完成日期']) {
+                    updateData.completion_date = new Date().toISOString();
+                } else if (status === 'completed' && row['完成日期']) {
+                    updateData.completion_date = row['完成日期'] + 'T00:00:00Z';
+                } else if (status !== 'completed') {
+                    updateData.completion_date = null;
+                }
+                
+                try {
+                    var { error } = await supabase.from('training_records').update(updateData).eq('id', recordId);
+                    if (error) {
+                        errorCount++;
+                    } else {
+                        successCount++;
+                    }
+                } catch (err) {
+                    errorCount++;
+                }
+            }
+            
+            alert('匯入完成！\n成功：' + successCount + ' 筆\n失敗：' + errorCount + ' 筆');
+            closeModal('importRecordsModal');
+            loadAllRecords();
         }
 
         async function loadSettings() {
