@@ -1985,7 +1985,7 @@
                 }).join('') + '</tbody></table>' +
                 '<p style="color:var(--text-secondary);margin-top:1rem;font-size:0.875rem;">📋 課程分類：' + categoryName + 
                 (course.is_required ? ' | ⚠️ 必修課程，缺席者需補課' : '') + ' | 🎤 主講人不計入出席，建議另行排除該課程</p>';
-        }
+        
             // 載入「手動加入員工」的下拉選單（排除已在名單中的）
             var employeeIds = employees.map(function(e) { return e.id; });
             var remainingEmployees = window.attendanceAllEmployees.filter(function(e) { return !employeeIds.includes(e.id); });
@@ -1994,6 +1994,7 @@
             remainingEmployees.forEach(function(emp) {
                 manualSelect.innerHTML += '<option value="' + emp.id + '" data-name="' + emp.name + '" data-dept="' + (emp.departments ? emp.departments.name : '-') + '" data-newcomer="' + emp.is_newcomer + '">' + emp.name + ' (' + (emp.departments ? emp.departments.name : '-') + ')</option>';
             });
+        }
 
         function addEmployeeToAttendance() {
             var select = document.getElementById('manualAddEmployee');
