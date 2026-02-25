@@ -1939,7 +1939,9 @@
             var categoryName = course.course_categories ? course.course_categories.name : '一般訓練';
             
             // 取得所有啟用的員工
-            var { data: allEmployees } = await supabase.from('employees').select('*, departments(name)').eq('is_active', true).order('name');
+            var { data: fetchedEmployees } = await supabase.from('employees').select('*, departments(name)').eq('is_active', true).order('name');
+            var allEmployees = fetchedEmployees || [];
+            window.attendanceAllEmployees = allEmployees; // 儲存到全域變數
             
             // 取得已經開始此課程的員工（用於主管訓練的員工選修）
             var { data: enrolledRecords } = await supabase.from('training_records').select('employee_id').eq('course_id', courseId);
@@ -1986,7 +1988,7 @@
         }
             // 載入「手動加入員工」的下拉選單（排除已在名單中的）
             var employeeIds = employees.map(function(e) { return e.id; });
-            var remainingEmployees = allEmployees.filter(function(e) { return !employeeIds.includes(e.id); });
+            var remainingEmployees = window.attendanceAllEmployees.filter(function(e) { return !employeeIds.includes(e.id); });
             var manualSelect = document.getElementById('manualAddEmployee');
             manualSelect.innerHTML = '<option value="">選擇員工...</option>';
             remainingEmployees.forEach(function(emp) {
