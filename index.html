@@ -339,7 +339,7 @@
             <!-- All Records Page -->
             <div id="page-all-records" class="page">
                 <div class="alert alert-warning" style="margin-bottom:1rem;">
-                    <strong>💡 匯入提醒：</strong>下載 CSV 檔後，編輯「狀態」和「分數」欄位。狀態請填：completed / in_progress / not_started / failed，儲存為 CSV 格式後再匯入。
+                    <strong>💡 匯入提醒：</strong>下載 CSV 檔後，編輯「狀態」、「分數」和「完成日期」欄位。狀態請填：completed / in_progress / not_started / failed，儲存為 CSV 格式後再匯入。
                 </div>
                 <div class="page-header"><h1>📊 所有訓練紀錄</h1>
                     <div style="display:flex;gap:0.5rem;">
@@ -1110,8 +1110,9 @@
                 var statusLabel = statusLabels[status];
                 var statusClass = statusClasses[status];
                 
-                // 如果有出席紀錄且是缺席/請假且需補課，顯示特殊狀態
-                if (attendance && (attendance.status === 'absent' || attendance.status === 'leave') && attendance.makeup_required) {
+                // 如果 training_records.status = completed，優先顯示「已完成」
+                // 否則才看出席紀錄的狀態
+                if (status !== 'completed' && attendance && (attendance.status === 'absent' || attendance.status === 'leave') && attendance.makeup_required) {
                     if (attendance.makeup_completed) {
                         statusLabel = '已補課';
                         statusClass = 'success';
