@@ -218,8 +218,12 @@
             <!-- My Training Page -->
             <div id="page-my-training" class="page">
                 <div class="page-header"><h1>📖 我的訓練課程</h1><select class="filter-select" id="myTrainingYearFilter" onchange="loadMyCourses()" style="font-size:1rem;"></select></div>
-                <div class="toolbar">
-                    <input type="text" class="search-input" id="myTrainingSearch" placeholder="搜尋課程名稱..." oninput="filterMyTraining()">
+            <div style="background:rgba(37,99,235,0.1);border:1px solid var(--primary);border-radius:0.5rem;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.875rem;">
+                <span style="color:#60a5fa;">💡 必修/選修說明：</span>
+                <span style="color:var(--text-secondary);">「必修」→ 一定要修 ｜「選修」→ 可修可不修 ｜「指定必修」→ 主管特別指派您必須完成的課程</span>
+            </div>
+            <div class="toolbar">
+                <input type="text" class="search-input" id="myTrainingSearch" placeholder="搜尋課程名稱..." oninput="filterMyTraining()">
                     <select class="filter-select" id="myTrainingCategoryFilter" onchange="filterMyTraining()"><option value="">全部分類</option><option value="新人訓練">新人訓練</option><option value="一般訓練">一般訓練</option><option value="主管訓練">主管訓練</option></select>
                     <select class="filter-select" id="myTrainingDeptFilter" onchange="filterMyTraining()"><option value="">全部提供部門</option><option value="人力資源部">人力資源部</option><option value="財務部">財務部</option><option value="數位部">數位部</option></select>
                     <select class="filter-select" id="myTrainingStatusFilter" onchange="filterMyTraining()"><option value="">全部狀態</option><option value="not_started">未開始</option><option value="in_progress">進行中</option><option value="completed">已完成</option></select>
@@ -463,9 +467,13 @@
         <div class="modal-content" style="max-width:800px;">
             <div class="modal-header"><h2>📚 指派課程 - <span id="assignEmployeeName"></span></h2><button class="modal-close" onclick="closeModal('assignCoursesModal')">&times;</button></div>
             <input type="hidden" id="assignEmployeeId">
-            <div class="toolbar">
-                <select class="filter-select" id="assignYearFilter" onchange="loadAssignCourses(document.getElementById('assignEmployeeId').value)"></select>
-                <select class="filter-select" id="assignCourseFilter" onchange="filterAssignCourses()">
+        <div style="background:rgba(245,158,11,0.1);border:1px solid var(--warning);border-radius:0.5rem;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.875rem;">
+            <span style="color:#f59e0b;">📋 操作說明：</span>
+            <span style="color:var(--text-secondary);">「必修」→ 員工看到「指定必修」｜「選修」→ 員工看到「選修」｜「排除」→ 從員工的課程清單中移除</span>
+        </div>
+        <div class="toolbar">
+            <select class="filter-select" id="assignYearFilter" onchange="loadAssignCourses(document.getElementById('assignEmployeeId').value)"></select>
+            <select class="filter-select" id="assignCourseFilter" onchange="filterAssignCourses()">
                     <option value="">全部課程</option>
                     <option value="required">已指派必修</option>
                     <option value="optional">已指派選修</option>
