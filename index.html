@@ -491,7 +491,7 @@
                 <div class="form-group"><label><input type="checkbox" id="courseRequired"> 必修課程</label></div>
                 <div class="form-group"><label><input type="checkbox" id="courseManagerOnly"> 僅限主管（員工無法報名此課程）</label></div>
                 <div class="form-group"><label>課程說明</label><textarea id="courseDescription" rows="3" placeholder="請輸入課程說明"></textarea></div>
-                <div class="form-group"><label>課程內容/教材連結</label><textarea id="courseContent" rows="3" placeholder="請輸入課程內容或教材連結"></textarea></div>
+                <div class="form-group"><label>課程教材/測驗說明</label><textarea id="courseContent" rows="3" placeholder="請輸入課程教材或測驗連結"></textarea></div>
                 <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('courseModal')">取消</button><button type="submit" class="btn btn-primary">儲存</button></div>
             </form>
         </div>
@@ -1869,7 +1869,7 @@
                 // 課程內容
                 if (course.content) {
                     detailHtml += '<hr style="border-color:var(--border);margin:1rem 0;">';
-                    detailHtml += '<p><strong>課程內容/教材：</strong></p><p style="color:var(--text-secondary);white-space:pre-wrap;">' + course.content + '</p>';
+                    detailHtml += '<p><strong>課程教材/測驗：</strong></p><p style="color:var(--text-secondary);white-space:pre-wrap;">' + course.content + '</p>';
                 }
                 
                 document.getElementById('courseDetailContent').innerHTML = detailHtml;
