@@ -1008,6 +1008,7 @@
                             record: recordMap[course.id],
                             attendance: attendanceMap[course.id],
                             isRequired: assignment.assignment_type === 'required',
+                            isAssigned: true,
                             categoryName: categoryName
                         });
                         return;
@@ -1038,6 +1039,7 @@
                             record: recordMap[course.id],
                             attendance: attendanceMap[course.id],
                             isRequired: isRequired,
+                            isAssigned: false,
                             categoryName: categoryName
                         });
                     }
@@ -1077,6 +1079,16 @@
                     }
                 }
                 
+                // 必修/選修顯示邏輯
+                var requiredLabel = '';
+                if (course.isAssigned && course.isRequired) {
+                    requiredLabel = '<span class="badge badge-primary">指定必修</span>';
+                } else if (course.isRequired) {
+                    requiredLabel = '<span class="badge badge-danger">必修</span>';
+                } else {
+                    requiredLabel = '<span class="badge badge-info">選修</span>';
+                }
+                
                 var actionBtn = '<button class="btn btn-sm btn-secondary" onclick="showCourseDetail(\'' + course.id + '\')">查看</button> ';
                 if (status === 'not_started') {
                     actionBtn += '<button class="btn btn-sm btn-primary" onclick="startCourse(\'' + course.id + '\')">開始</button>';
@@ -1090,7 +1102,7 @@
                     '<td>' + (course.provider_department || '-') + '</td>' +
                     '<td>' + (courseTypeLabels[course.course_type] || '實體') + '</td>' +
                     '<td>' + (course.course_date ? new Date(course.course_date).toLocaleDateString() : '-') + '</td>' +
-                    '<td>' + (course.isRequired ? '<span class="badge badge-danger">必修</span>' : '<span class="badge badge-info">選修</span>') + '</td>' +
+                    '<td>' + requiredLabel + '</td>' +
                     '<td><span class="badge badge-' + statusClass + '">' + statusLabel + '</span></td>' +
                     '<td>' + actionBtn + '</td>' +
                     '</tr>';
