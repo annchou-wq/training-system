@@ -980,12 +980,16 @@
             var { data: courses } = await supabase.from('courses').select('*, course_categories(name)').eq('is_active', true).eq('course_year', selectedYear).order('course_date', { ascending: true, nullsFirst: false });
             var { data: records } = await supabase.from('training_records').select('*').eq('employee_id', currentUser.id);
             var { data: assignments } = await supabase.from('course_assignments').select('*').eq('employee_id', currentUser.id).eq('assignment_year', selectedYear);
+            var { data: attendances } = await supabase.from('attendance_records').select('*').eq('employee_id', currentUser.id);
             
             var recordMap = {};
             if (records) records.forEach(function(r) { recordMap[r.course_id] = r; });
             
             var assignmentMap = {};
             if (assignments) assignments.forEach(function(a) { assignmentMap[a.course_id] = a; });
+            
+            var attendanceMap = {};
+            if (attendances) attendances.forEach(function(a) { attendanceMap[a.course_id] = a; });
             
             // 篩選可存取的課程（該年度）
             var accessibleCourses = [];
@@ -1001,7 +1005,8 @@
                         }
                         accessibleCourses.push({ 
                             ...course, 
-                            record: recordMap[course.id], 
+                            record: recordMap[course.id],
+                            attendance: attendanceMap[course.id],
                             isRequired: assignment.assignment_type === 'required',
                             categoryName: categoryName
                         });
@@ -1030,7 +1035,8 @@
                     if (canAccess) {
                         accessibleCourses.push({ 
                             ...course, 
-                            record: recordMap[course.id], 
+                            record: recordMap[course.id],
+                            attendance: attendanceMap[course.id],
                             isRequired: isRequired,
                             categoryName: categoryName
                         });
@@ -1055,7 +1061,21 @@
             
             tbody.innerHTML = courses.map(function(course) {
                 var record = course.record;
+                var attendance = course.attendance;
                 var status = record ? record.status : 'not_started';
+                var statusLabel = statusLabels[status];
+                var statusClass = statusClasses[status];
+                
+                // 如果有出席紀錄且是缺席/請假且需補課，顯示特殊狀態
+                if (attendance && (attendance.status === 'absent' || attendance.status === 'leave') && attendance.makeup_required) {
+                    if (attendance.makeup_completed) {
+                        statusLabel = '已補課';
+                        statusClass = 'success';
+                    } else {
+                        statusLabel = attendance.status === 'absent' ? '缺席(須補課)' : '請假(須補課)';
+                        statusClass = 'danger';
+                    }
+                }
                 
                 var actionBtn = '<button class="btn btn-sm btn-secondary" onclick="showCourseDetail(\'' + course.id + '\')">查看</button> ';
                 if (status === 'not_started') {
@@ -1071,7 +1091,7 @@
                     '<td>' + (courseTypeLabels[course.course_type] || '實體') + '</td>' +
                     '<td>' + (course.course_date ? new Date(course.course_date).toLocaleDateString() : '-') + '</td>' +
                     '<td>' + (course.isRequired ? '<span class="badge badge-danger">必修</span>' : '<span class="badge badge-info">選修</span>') + '</td>' +
-                    '<td><span class="badge badge-' + statusClasses[status] + '">' + statusLabels[status] + '</span></td>' +
+                    '<td><span class="badge badge-' + statusClass + '">' + statusLabel + '</span></td>' +
                     '<td>' + actionBtn + '</td>' +
                     '</tr>';
             }).join('');
@@ -2252,6 +2272,16 @@
                         start_date: attendanceDate
                     });
                 }
+                
+                // 缺席或請假者（必修課），也建立訓練紀錄為「進行中」（須補課）
+                if ((status === 'absent' || status === 'leave') && isRequired) {
+                    trainingRecords.push({
+                        course_id: courseId,
+                        employee_id: empId,
+                        status: 'in_progress',
+                        start_date: attendanceDate
+                    });
+                }
             });
             
             try {
@@ -2259,7 +2289,7 @@
                 var { error: attError } = await supabase.from('attendance_records').upsert(attendanceData, { onConflict: 'course_id,employee_id,attendance_date' });
                 if (attError) throw attError;
                 
-                // 儲存訓練紀錄（出席者）
+                // 儲存訓練紀錄（出席者 + 需補課者）
                 for (var i = 0; i < trainingRecords.length; i++) {
                     var rec = trainingRecords[i];
                     var { data: existing } = await supabase.from('training_records').select('*').eq('employee_id', rec.employee_id).eq('course_id', rec.course_id).single();
@@ -2270,7 +2300,7 @@
                     }
                 }
                 
-                alert('點名完成！出席者已自動標記為「進行中」');
+                alert('點名完成！出席者已自動標記為「進行中」，缺席/請假者（必修課）也已建立紀錄');
                 closeModal('takeAttendanceModal');
                 loadAttendanceRecords();
             } catch (err) {
