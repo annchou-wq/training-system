@@ -216,7 +216,7 @@
                         <h4 style="color:#10b981;margin-bottom:0.75rem;">📎 相關表單下載</h4>
                         
                         <div style="background:var(--bg-card);padding:0.75rem;border-radius:0.375rem;border-left:3px solid #10b981;margin-bottom:0.75rem;">
-                            <div style="color:#10b981;font-weight:500;margin-bottom:0.5rem;font-size:0.875rem;">📝 完成線上課程後須提交（員工選①、主管皆適用）</div>
+                            <div style="color:#10b981;font-weight:500;margin-bottom:0.5rem;">📝 完成線上課程後須提交（員工選①、主管皆適用）</div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.875rem;">
                                 <div style="color:var(--text-secondary);">
                                     <span>• 教育訓練心得報告</span>
@@ -1136,6 +1136,10 @@
                     actionBtn += '<button class="btn btn-sm btn-primary" onclick="startCourse(\'' + course.id + '\')">開始</button>';
                 } else if (status === 'in_progress') {
                     actionBtn += '<button class="btn btn-sm btn-warning" onclick="showCourseDetail(\'' + course.id + '\')">繼續</button>';
+                    // 如果是進行中且沒有分數，可以取消
+                    if (record && record.score === null) {
+                        actionBtn += ' <button class="btn btn-sm btn-danger" onclick="cancelCourse(\'' + record.id + '\', \'' + course.title.replace(/'/g, "\\'") + '\')">取消</button>';
+                    }
                 }
                 
                 return '<tr>' +
@@ -1180,6 +1184,18 @@
                 loadMyCourses();
                 loadDashboardData();
             } catch (err) { alert('開始課程失敗：' + err.message); }
+        }
+
+        async function cancelCourse(recordId, courseTitle) {
+            if (!confirm('確定要取消「' + courseTitle + '」嗎？\n\n取消後此課程會回到「未開始」狀態。')) {
+                return;
+            }
+            try {
+                await supabase.from('training_records').delete().eq('id', recordId);
+                alert('已取消課程！');
+                loadMyCourses();
+                loadDashboardData();
+            } catch (err) { alert('取消課程失敗：' + err.message); }
         }
 
         async function loadMyRecords() {
@@ -1522,14 +1538,27 @@
             var statusClasses = { 'not_started': 'info', 'in_progress': 'warning', 'completed': 'success', 'failed': 'danger' };
             tbody.innerHTML = data.map(function(record) {
                 var emp = record.employees || {};
+                var courseName = record.courses ? record.courses.title.replace(/'/g, "\\'") : '';
                 return '<tr><td>' + (emp.name || '-') + ' (' + (emp.employee_id || '') + ')</td>' +
                     '<td>' + (record.courses ? record.courses.title : '-') + '</td>' +
                     '<td>' + (record.courses && record.courses.course_categories ? record.courses.course_categories.name : '-') + '</td>' +
                     '<td><span class="badge badge-' + statusClasses[record.status] + '">' + statusLabels[record.status] + '</span></td>' +
                     '<td>' + (record.score !== null ? record.score + ' 分' : '-') + '</td>' +
                     '<td>' + (record.completion_date ? new Date(record.completion_date).toLocaleDateString() : '-') + '</td>' +
-                    '<td><button class="btn btn-sm btn-primary" onclick="showUpdateRecordModal(\'' + record.id + '\',\'' + (emp.name || '') + '\',\'' + (record.courses ? record.courses.title : '') + '\',\'' + record.status + '\',' + record.score + ',\'' + (record.notes || '') + '\',\'' + record.employee_id + '\',\'' + record.course_id + '\')">更新狀態</button></td></tr>';
+                    '<td><button class="btn btn-sm btn-primary" onclick="showUpdateRecordModal(\'' + record.id + '\',\'' + (emp.name || '') + '\',\'' + (record.courses ? record.courses.title : '') + '\',\'' + record.status + '\',' + record.score + ',\'' + (record.notes || '') + '\',\'' + record.employee_id + '\',\'' + record.course_id + '\')">更新狀態</button> ' +
+                    '<button class="btn btn-sm btn-danger" onclick="deleteRecord(\'' + record.id + '\', \'' + (emp.name || '') + '\', \'' + courseName + '\')">刪除</button></td></tr>';
             }).join('');
+        }
+
+        async function deleteRecord(recordId, empName, courseName) {
+            if (!confirm('確定要刪除「' + empName + '」的「' + courseName + '」紀錄嗎？\n\n此操作無法復原！')) {
+                return;
+            }
+            try {
+                await supabase.from('training_records').delete().eq('id', recordId);
+                alert('紀錄已刪除！');
+                loadAllRecords();
+            } catch (err) { alert('刪除失敗：' + err.message); }
         }
 
         function filterRecords() {
