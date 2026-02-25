@@ -1743,8 +1743,8 @@
             var score = document.getElementById('updateRecordScore').value;
             var notes = document.getElementById('updateRecordNotes').value;
             var updateData = { status: status, notes: notes, updated_at: new Date().toISOString() };
-            if (score) updateData.score = parseInt(score);
-            if (status === 'completed') updateData.completion_date = new Date().toISOString();
+            updateData.score = score ? parseInt(score) : null;
+            updateData.completion_date = (status === 'completed') ? new Date().toISOString() : null;
             try {
                 await supabase.from('training_records').update(updateData).eq('id', recordId);
                 alert('訓練狀態已更新！');
