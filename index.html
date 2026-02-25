@@ -1967,8 +1967,8 @@
                 return;
             }
             
-            container.innerHTML = '<table style="width:100%;">' +
-                '<thead><tr><th>員工</th><th>部門</th><th style="text-align:center;">出席</th><th style="text-align:center;">缺席</th><th style="text-align:center;">遲到</th><th style="text-align:center;">請假</th><th style="text-align:center;">不須參加</th><th style="text-align:center;">主講人</th></tr></thead>' +
+            container.innerHTML = '<table style="width:100%;border-collapse:separate;border-spacing:0;">' +
+                '<thead style="position:sticky;top:0;background:var(--bg-card);z-index:10;"><tr><th style="background:var(--bg-card);">員工</th><th style="background:var(--bg-card);">部門</th><th style="text-align:center;background:var(--bg-card);">出席</th><th style="text-align:center;background:var(--bg-card);">缺席</th><th style="text-align:center;background:var(--bg-card);">遲到</th><th style="text-align:center;background:var(--bg-card);">請假</th><th style="text-align:center;background:var(--bg-card);">不須參加</th><th style="text-align:center;background:var(--bg-card);">主講人</th></tr></thead>' +
                 '<tbody>' + employees.map(function(emp) {
                     return '<tr data-employee-id="' + emp.id + '">' +
                         '<td>' + emp.name + (emp.is_newcomer ? ' <span class="badge badge-info">新人</span>' : '') + '</td>' +
