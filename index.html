@@ -505,6 +505,13 @@
                 <div class="form-group"><label>選擇課程 *</label><select id="attendanceCourse" required onchange="loadCourseEmployees()"><option value="">請選擇課程</option></select></div>
                 <div class="form-group"><label>點名日期 *</label><input type="date" id="attendanceDate" required></div>
                 <div id="employeeAttendanceList" style="max-height:300px;overflow-y:auto;margin:1rem 0;"></div>
+                <div style="margin:1rem 0;padding:1rem;background:var(--bg-dark);border-radius:0.5rem;">
+                    <label style="color:var(--text-secondary);font-size:0.875rem;">➕ 手動加入員工</label>
+                    <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+                        <select id="manualAddEmployee" class="filter-select" style="flex:1;"><option value="">選擇員工...</option></select>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="addEmployeeToAttendance()">加入</button>
+                    </div>
+                </div>
                 <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal('takeAttendanceModal')">取消</button><button type="submit" class="btn btn-primary">儲存點名</button></div>
             </form>
         </div>
@@ -1976,6 +1983,46 @@
                 }).join('') + '</tbody></table>' +
                 '<p style="color:var(--text-secondary);margin-top:1rem;font-size:0.875rem;">📋 課程分類：' + categoryName + 
                 (course.is_required ? ' | ⚠️ 必修課程，缺席者需補課' : '') + ' | 🎤 主講人不計入出席，建議另行排除該課程</p>';
+        }
+            // 載入「手動加入員工」的下拉選單（排除已在名單中的）
+            var employeeIds = employees.map(function(e) { return e.id; });
+            var remainingEmployees = allEmployees.filter(function(e) { return !employeeIds.includes(e.id); });
+            var manualSelect = document.getElementById('manualAddEmployee');
+            manualSelect.innerHTML = '<option value="">選擇員工...</option>';
+            remainingEmployees.forEach(function(emp) {
+                manualSelect.innerHTML += '<option value="' + emp.id + '" data-name="' + emp.name + '" data-dept="' + (emp.departments ? emp.departments.name : '-') + '" data-newcomer="' + emp.is_newcomer + '">' + emp.name + ' (' + (emp.departments ? emp.departments.name : '-') + ')</option>';
+            });
+
+        function addEmployeeToAttendance() {
+            var select = document.getElementById('manualAddEmployee');
+            var empId = select.value;
+            if (!empId) {
+                alert('請選擇要加入的員工');
+                return;
+            }
+            
+            var option = select.options[select.selectedIndex];
+            var empName = option.dataset.name;
+            var empDept = option.dataset.dept;
+            var isNewcomer = option.dataset.newcomer === 'true';
+            
+            // 加入到點名表格
+            var tbody = document.querySelector('#employeeAttendanceList tbody');
+            var newRow = '<tr data-employee-id="' + empId + '" style="background:rgba(37,99,235,0.1);">' +
+                '<td>' + empName + (isNewcomer ? ' <span class="badge badge-info">新人</span>' : '') + ' <span class="badge badge-primary">手動加入</span></td>' +
+                '<td>' + empDept + '</td>' +
+                '<td style="text-align:center;"><input type="radio" name="att_' + empId + '" value="present" checked></td>' +
+                '<td style="text-align:center;"><input type="radio" name="att_' + empId + '" value="absent"></td>' +
+                '<td style="text-align:center;"><input type="radio" name="att_' + empId + '" value="late"></td>' +
+                '<td style="text-align:center;"><input type="radio" name="att_' + empId + '" value="leave"></td>' +
+                '<td style="text-align:center;"><input type="radio" name="att_' + empId + '" value="exempt"></td>' +
+                '<td style="text-align:center;"><input type="radio" name="att_' + empId + '" value="speaker"></td>' +
+                '</tr>';
+            tbody.insertAdjacentHTML('beforeend', newRow);
+            
+            // 從下拉選單移除已加入的員工
+            select.remove(select.selectedIndex);
+            select.value = '';
         }
 
         document.getElementById('takeAttendanceForm').addEventListener('submit', async function(e) {
