@@ -301,7 +301,12 @@
 
             <!-- Employees Page -->
             <div id="page-employees" class="page">
-                <div class="page-header"><h1>👤 員工管理</h1><button class="btn btn-primary" onclick="showAddEmployeeModal()">➕ 新增員工</button></div>
+                <div class="page-header"><h1>👤 員工管理</h1>
+                    <div style="display:flex;gap:0.5rem;">
+                        <button class="btn btn-primary" onclick="showAddEmployeeModal()">➕ 新增員工</button>
+                        <button class="btn btn-secondary" onclick="showBatchAssignModal()">📋 批次指派課程</button>
+                    </div>
+                </div>
                 <div class="toolbar">
                     <input type="text" class="search-input" id="employeeSearch" placeholder="搜尋員工姓名或編號..." oninput="filterEmployees()">
                     <select class="filter-select" id="employeeDeptFilter" onchange="filterEmployees()"><option value="">全部部門</option></select>
@@ -362,11 +367,25 @@
 
             <!-- Attendance Page -->
             <div id="page-attendance" class="page">
-                <div class="page-header"><h1>📋 出席管理</h1><button class="btn btn-primary" onclick="showTakeAttendanceModal()">✅ 進行點名</button></div>
+                <div class="page-header"><h1>📋 出席管理</h1>
+                    <div style="display:flex;gap:0.5rem;">
+                        <button class="btn btn-primary" onclick="showTakeAttendanceModal()">✅ 進行點名</button>
+                        <button class="btn btn-secondary" onclick="exportAllEmployeeList()">👥 匯出全員工清單</button>
+                    </div>
+                </div>
+                <div class="alert alert-warning" style="margin-bottom:1rem;">
+                    <strong>📋 匯出/匯入點名說明：</strong><br>
+                    1. 選擇課程後點「匯出點名表」下載 CSV<br>
+                    2. 用 Excel 編輯「出席日期」和「出席狀態」欄位（狀態填：present/absent/late/leave/exempt/speaker）<br>
+                    3. 如要新增不在名單的員工，可從「全員工清單」複製該員工資料貼到點名表，員工姓名、部門欄位可不填<br>
+                    4. 儲存為 CSV 後點「匯入點名」上傳
+                </div>
                 <div class="toolbar">
                     <select class="filter-select" id="attendanceYearFilter" onchange="loadAttendancePage()"></select>
                     <select class="filter-select" id="attendanceCourseFilter" onchange="loadAttendanceRecords()"><option value="">選擇課程</option></select>
                     <input type="date" class="search-input" id="attendanceDateFilter" onchange="loadAttendanceRecords()" style="flex:none;width:auto;">
+                    <button class="btn btn-success" onclick="exportAttendanceCSV()" id="btnExportAttendance" style="display:none;">📤 匯出點名表</button>
+                    <button class="btn btn-primary" onclick="showImportAttendanceModal()" id="btnImportAttendance" style="display:none;">📥 匯入點名</button>
                 </div>
                 <div class="card"><div class="table-container">
                     <table><thead><tr><th>員工姓名</th><th>課程名稱</th><th>日期</th><th>出席狀態</th><th>需補課</th><th>補課完成</th><th>操作</th></tr></thead>
@@ -607,6 +626,75 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('importRecordsModal')">取消</button>
                 <button type="button" class="btn btn-primary" onclick="executeImportRecords()" id="btnExecuteImport" disabled>確認匯入</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="importAttendanceModal" class="modal">
+        <div class="modal-content" style="max-width:600px;">
+            <div class="modal-header"><h2>📥 匯入點名結果</h2><button class="modal-close" onclick="closeModal('importAttendanceModal')">&times;</button></div>
+            <div class="alert alert-warning" style="margin-bottom:1rem;">
+                <strong>📋 匯入說明：</strong><br>
+                1. 請確保「課程ID」、「員工編號」、「出席日期」、「出席狀態」欄位已填寫<br>
+                2. 出席狀態請填：present / absent / late / leave / exempt / speaker<br>
+                3. 員工姓名、部門欄位可不填（系統會自動查詢）
+            </div>
+            <div class="form-group">
+                <label>選擇 CSV 檔案</label>
+                <input type="file" id="importAttendanceFile" accept=".csv" class="form-group" style="padding:0.5rem;">
+            </div>
+            <div id="importAttendancePreview" style="display:none;margin:1rem 0;">
+                <h4 style="margin-bottom:0.5rem;">預覽（前 5 筆）：</h4>
+                <div class="table-container" style="max-height:200px;overflow-y:auto;">
+                    <table><thead id="importAttendancePreviewHead"></thead><tbody id="importAttendancePreviewBody"></tbody></table>
+                </div>
+                <p id="importAttendancePreviewCount" style="margin-top:0.5rem;color:var(--text-secondary);"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('importAttendanceModal')">取消</button>
+                <button type="button" class="btn btn-primary" onclick="executeImportAttendance()" id="btnExecuteImportAttendance" disabled>確認匯入</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="batchAssignModal" class="modal">
+        <div class="modal-content" style="max-width:700px;">
+            <div class="modal-header"><h2>📋 批次指派課程</h2><button class="modal-close" onclick="closeModal('batchAssignModal')">&times;</button></div>
+            <div class="alert alert-warning" style="margin-bottom:1rem;">
+                <strong>📋 使用說明：</strong><br>
+                1. 選擇年度後點「匯出指派表」下載 CSV<br>
+                2. CSV 格式：每列一位員工，每欄一門課程<br>
+                3. 填入指派狀態：required（必修）/ optional（選修）/ excluded（排除）/ 空白（使用預設）<br>
+                4. 儲存為 CSV 後點「匯入指派」上傳
+            </div>
+            <div class="toolbar" style="margin-bottom:1rem;">
+                <select class="filter-select" id="batchAssignYearFilter"></select>
+                <button class="btn btn-success" onclick="exportBatchAssignCSV()">📤 匯出指派表</button>
+                <button class="btn btn-primary" onclick="showImportBatchAssignModal()">📥 匯入指派</button>
+            </div>
+            <div id="batchAssignPreview" style="max-height:300px;overflow:auto;">
+                <p style="color:var(--text-secondary);text-align:center;">選擇年度後點「匯出指派表」開始操作</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="importBatchAssignModal" class="modal">
+        <div class="modal-content" style="max-width:600px;">
+            <div class="modal-header"><h2>📥 匯入指派表</h2><button class="modal-close" onclick="closeModal('importBatchAssignModal')">&times;</button></div>
+            <div class="form-group">
+                <label>選擇 CSV 檔案</label>
+                <input type="file" id="importBatchAssignFile" accept=".csv" class="form-group" style="padding:0.5rem;">
+            </div>
+            <div id="importBatchAssignPreview" style="display:none;margin:1rem 0;">
+                <h4 style="margin-bottom:0.5rem;">預覽（前 5 筆）：</h4>
+                <div class="table-container" style="max-height:200px;overflow-y:auto;">
+                    <table><thead id="importBatchAssignPreviewHead"></thead><tbody id="importBatchAssignPreviewBody"></tbody></table>
+                </div>
+                <p id="importBatchAssignPreviewCount" style="margin-top:0.5rem;color:var(--text-secondary);"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('importBatchAssignModal')">取消</button>
+                <button type="button" class="btn btn-primary" onclick="executeImportBatchAssign()" id="btnExecuteImportBatchAssign" disabled>確認匯入</button>
             </div>
         </div>
     </div>
@@ -2130,6 +2218,259 @@
         // ========================================
         // 出席管理功能
         // ========================================
+        
+        // 匯出全員工清單
+        async function exportAllEmployeeList() {
+            var { data: employees } = await supabase.from('employees').select('*, departments(name)').eq('is_active', true).order('employee_id');
+            if (!employees || employees.length === 0) {
+                alert('沒有員工資料');
+                return;
+            }
+            var exportData = employees.map(function(emp) {
+                return {
+                    '員工編號': emp.employee_id,
+                    '員工姓名': emp.name,
+                    '部門': emp.departments ? emp.departments.name : ''
+                };
+            });
+            exportToCSV(exportData, '全員工清單');
+        }
+        
+        // 匯出點名表
+        async function exportAttendanceCSV() {
+            var courseId = document.getElementById('attendanceCourseFilter').value;
+            if (!courseId) {
+                alert('請先選擇課程');
+                return;
+            }
+            
+            // 取得課程資訊
+            var { data: course } = await supabase.from('courses').select('*, course_categories(name)').eq('id', courseId).single();
+            if (!course) {
+                alert('找不到課程');
+                return;
+            }
+            var categoryName = course.course_categories ? course.course_categories.name : '一般訓練';
+            
+            // 取得所有啟用的員工
+            var { data: allEmployees } = await supabase.from('employees').select('*, departments(name)').eq('is_active', true).order('employee_id');
+            
+            // 取得已被指派此課程的員工
+            var { data: assignments } = await supabase.from('course_assignments').select('employee_id, assignment_type').eq('course_id', courseId);
+            var assignmentMap = {};
+            if (assignments) assignments.forEach(function(a) { assignmentMap[a.employee_id] = a.assignment_type; });
+            
+            // 取得已有出席紀錄的員工
+            var { data: existingAttendance } = await supabase.from('attendance_records').select('employee_id, attendance_date, status').eq('course_id', courseId);
+            var attendanceMap = {};
+            if (existingAttendance) existingAttendance.forEach(function(a) { attendanceMap[a.employee_id] = a; });
+            
+            // 篩選應出席的員工
+            var employeeList = [];
+            allEmployees.forEach(function(emp) {
+                var assignment = assignmentMap[emp.id];
+                var existingAtt = attendanceMap[emp.id];
+                
+                // 被排除的跳過
+                if (assignment === 'excluded') return;
+                
+                // 判斷是否應該出席
+                var shouldAttend = false;
+                
+                // 有指派的一定列入
+                if (assignment === 'required' || assignment === 'optional') {
+                    shouldAttend = true;
+                }
+                // 已有出席紀錄的列入
+                else if (existingAtt) {
+                    shouldAttend = true;
+                }
+                // 根據課程分類判斷
+                else if (categoryName === '新人訓練') {
+                    shouldAttend = emp.is_newcomer;
+                } else if (categoryName === '一般訓練') {
+                    shouldAttend = true;
+                } else if (categoryName === '主管訓練') {
+                    if (course.manager_only) {
+                        shouldAttend = (emp.role === 'manager' || emp.role === 'admin');
+                    } else {
+                        shouldAttend = true;
+                    }
+                }
+                
+                if (shouldAttend) {
+                    employeeList.push({
+                        '課程ID': courseId,
+                        '課程名稱': course.title,
+                        '員工編號': emp.employee_id,
+                        '員工姓名': emp.name,
+                        '部門': emp.departments ? emp.departments.name : '',
+                        '出席日期': existingAtt ? existingAtt.attendance_date : '',
+                        '出席狀態': existingAtt ? existingAtt.status : ''
+                    });
+                }
+            });
+            
+            if (employeeList.length === 0) {
+                alert('沒有應出席的員工');
+                return;
+            }
+            
+            exportToCSV(employeeList, '點名表_' + course.title);
+        }
+        
+        // 顯示匯入點名 Modal
+        function showImportAttendanceModal() {
+            document.getElementById('importAttendanceFile').value = '';
+            document.getElementById('importAttendancePreview').style.display = 'none';
+            document.getElementById('btnExecuteImportAttendance').disabled = true;
+            window.importAttendanceData = [];
+            showModal('importAttendanceModal');
+        }
+        
+        // 點名匯入檔案變更事件
+        document.addEventListener('DOMContentLoaded', function() {
+            var importAttFile = document.getElementById('importAttendanceFile');
+            if (importAttFile) {
+                importAttFile.addEventListener('change', function(e) {
+                    var file = e.target.files[0];
+                    if (!file) return;
+                    
+                    var reader = new FileReader();
+                    reader.onload = function(event) {
+                        var csv = event.target.result;
+                        var lines = csv.split('\n');
+                        var headers = lines[0].split(',').map(function(h) { return h.trim().replace(/"/g, ''); });
+                        
+                        window.importAttendanceData = [];
+                        for (var i = 1; i < lines.length; i++) {
+                            if (!lines[i].trim()) continue;
+                            var values = lines[i].split(',').map(function(v) { return v.trim().replace(/"/g, ''); });
+                            var row = {};
+                            headers.forEach(function(h, idx) { row[h] = values[idx] || ''; });
+                            window.importAttendanceData.push(row);
+                        }
+                        
+                        // 顯示預覽
+                        document.getElementById('importAttendancePreview').style.display = 'block';
+                        document.getElementById('importAttendancePreviewHead').innerHTML = '<tr>' + headers.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr>';
+                        document.getElementById('importAttendancePreviewBody').innerHTML = window.importAttendanceData.slice(0, 5).map(function(row) {
+                            return '<tr>' + headers.map(function(h) { return '<td>' + (row[h] || '-') + '</td>'; }).join('') + '</tr>';
+                        }).join('');
+                        document.getElementById('importAttendancePreviewCount').textContent = '共 ' + window.importAttendanceData.length + ' 筆紀錄';
+                        document.getElementById('btnExecuteImportAttendance').disabled = false;
+                    };
+                    reader.readAsText(file);
+                });
+            }
+        });
+        
+        // 執行匯入點名
+        async function executeImportAttendance() {
+            var data = window.importAttendanceData;
+            if (!data || data.length === 0) {
+                alert('沒有資料可匯入');
+                return;
+            }
+            
+            // 取得所有員工的編號對應 ID
+            var { data: allEmployees } = await supabase.from('employees').select('id, employee_id');
+            var empIdMap = {};
+            if (allEmployees) allEmployees.forEach(function(e) { empIdMap[e.employee_id] = e.id; });
+            
+            // 取得課程資訊判斷是否必修
+            var courseIds = [...new Set(data.map(function(r) { return r['課程ID']; }))];
+            var { data: courses } = await supabase.from('courses').select('id, is_required');
+            var courseMap = {};
+            if (courses) courses.forEach(function(c) { courseMap[c.id] = c; });
+            
+            var successCount = 0;
+            var errorCount = 0;
+            var errorMessages = [];
+            
+            for (var i = 0; i < data.length; i++) {
+                var row = data[i];
+                var courseId = row['課程ID'];
+                var employeeCode = row['員工編號'];
+                var attendanceDate = row['出席日期'];
+                var status = row['出席狀態'];
+                
+                // 驗證必填欄位
+                if (!courseId || !employeeCode || !attendanceDate || !status) {
+                    errorCount++;
+                    errorMessages.push('第 ' + (i+2) + ' 行：缺少必填欄位');
+                    continue;
+                }
+                
+                // 查詢員工 ID
+                var employeeId = empIdMap[employeeCode];
+                if (!employeeId) {
+                    errorCount++;
+                    errorMessages.push('第 ' + (i+2) + ' 行：找不到員工編號 ' + employeeCode);
+                    continue;
+                }
+                
+                // 驗證狀態值
+                var validStatuses = ['present', 'absent', 'late', 'leave', 'exempt', 'speaker'];
+                if (!validStatuses.includes(status)) {
+                    errorCount++;
+                    errorMessages.push('第 ' + (i+2) + ' 行：無效的狀態值 ' + status);
+                    continue;
+                }
+                
+                var course = courseMap[courseId];
+                var isRequired = course ? course.is_required : false;
+                var makeupRequired = (status === 'absent' || status === 'leave') && isRequired;
+                
+                var attendanceData = {
+                    course_id: courseId,
+                    employee_id: employeeId,
+                    attendance_date: attendanceDate,
+                    status: status,
+                    makeup_required: makeupRequired,
+                    makeup_completed: false,
+                    recorded_by: currentUser.id
+                };
+                
+                try {
+                    // 嘗試 upsert 出席紀錄
+                    var { error: attError } = await supabase.from('attendance_records').upsert(attendanceData, { onConflict: 'course_id,employee_id,attendance_date' });
+                    if (attError) throw attError;
+                    
+                    // 如果是出席或遲到，建立/更新訓練紀錄
+                    if (status === 'present' || status === 'late') {
+                        var { data: existingRecord } = await supabase.from('training_records').select('*').eq('employee_id', employeeId).eq('course_id', courseId).single();
+                        if (!existingRecord) {
+                            await supabase.from('training_records').insert({ employee_id: employeeId, course_id: courseId, status: 'in_progress', start_date: attendanceDate });
+                        } else if (existingRecord.status === 'not_started') {
+                            await supabase.from('training_records').update({ status: 'in_progress', start_date: attendanceDate }).eq('id', existingRecord.id);
+                        }
+                    }
+                    // 如果是缺席或請假且需補課，也建立訓練紀錄
+                    else if (makeupRequired) {
+                        var { data: existingRecord2 } = await supabase.from('training_records').select('*').eq('employee_id', employeeId).eq('course_id', courseId).single();
+                        if (!existingRecord2) {
+                            await supabase.from('training_records').insert({ employee_id: employeeId, course_id: courseId, status: 'in_progress', start_date: attendanceDate });
+                        }
+                    }
+                    
+                    successCount++;
+                } catch (err) {
+                    errorCount++;
+                    errorMessages.push('第 ' + (i+2) + ' 行：' + err.message);
+                }
+            }
+            
+            var message = '匯入完成！\n成功：' + successCount + ' 筆\n失敗：' + errorCount + ' 筆';
+            if (errorMessages.length > 0) {
+                message += '\n\n錯誤訊息：\n' + errorMessages.slice(0, 5).join('\n');
+                if (errorMessages.length > 5) message += '\n...還有 ' + (errorMessages.length - 5) + ' 個錯誤';
+            }
+            alert(message);
+            closeModal('importAttendanceModal');
+            loadAttendanceRecords();
+        }
+
         async function loadAttendancePage() {
             var yearFilter = document.getElementById('attendanceYearFilter');
             var selectedYear = yearFilter ? parseInt(yearFilter.value) : currentSelectedYear;
@@ -2151,6 +2492,10 @@
             var courseId = document.getElementById('attendanceCourseFilter').value;
             var dateFilter = document.getElementById('attendanceDateFilter').value;
             var tbody = document.getElementById('attendanceTable');
+            
+            // 顯示/隱藏匯出匯入按鈕
+            document.getElementById('btnExportAttendance').style.display = courseId ? 'inline-flex' : 'none';
+            document.getElementById('btnImportAttendance').style.display = courseId ? 'inline-flex' : 'none';
             
             if (!courseId) {
                 tbody.innerHTML = '<tr><td colspan="7" class="empty-state">請選擇課程查看出席紀錄</td></tr>';
@@ -2598,6 +2943,227 @@
             } catch (err) {
                 alert('移除失敗：' + err.message);
             }
+        }
+        
+        // ========================================
+        // 批次指派課程功能
+        // ========================================
+        
+        async function showBatchAssignModal() {
+            // 載入年度選項
+            var yearFilter = document.getElementById('batchAssignYearFilter');
+            var currentYear = new Date().getFullYear();
+            yearFilter.innerHTML = '';
+            for (var y = currentYear + 1; y >= currentYear - 2; y--) {
+                yearFilter.innerHTML += '<option value="' + y + '"' + (y === currentYear ? ' selected' : '') + '>' + y + ' 年度</option>';
+            }
+            document.getElementById('batchAssignPreview').innerHTML = '<p style="color:var(--text-secondary);text-align:center;">選擇年度後點「匯出指派表」開始操作</p>';
+            showModal('batchAssignModal');
+        }
+        
+        async function exportBatchAssignCSV() {
+            var selectedYear = parseInt(document.getElementById('batchAssignYearFilter').value);
+            
+            // 取得所有啟用的員工
+            var { data: employees } = await supabase.from('employees').select('*, departments(name)').eq('is_active', true).neq('role', 'boss').order('employee_id');
+            if (!employees || employees.length === 0) {
+                alert('沒有員工資料');
+                return;
+            }
+            
+            // 取得該年度的課程
+            var { data: courses } = await supabase.from('courses').select('*, course_categories(name)').eq('is_active', true).eq('course_year', selectedYear).order('title');
+            if (!courses || courses.length === 0) {
+                alert('該年度沒有課程');
+                return;
+            }
+            
+            // 取得所有指派紀錄
+            var { data: assignments } = await supabase.from('course_assignments').select('*').eq('assignment_year', selectedYear);
+            var assignmentMap = {};
+            if (assignments) {
+                assignments.forEach(function(a) {
+                    if (!assignmentMap[a.employee_id]) assignmentMap[a.employee_id] = {};
+                    assignmentMap[a.employee_id][a.course_id] = a.assignment_type;
+                });
+            }
+            
+            // 組合 CSV 資料
+            var exportData = [];
+            employees.forEach(function(emp) {
+                var row = {
+                    '員工編號': emp.employee_id,
+                    '員工姓名': emp.name,
+                    '部門': emp.departments ? emp.departments.name : ''
+                };
+                
+                courses.forEach(function(course) {
+                    var empAssignments = assignmentMap[emp.id];
+                    var assignment = empAssignments ? empAssignments[course.id] : '';
+                    row[course.title] = assignment || '';
+                });
+                
+                exportData.push(row);
+            });
+            
+            exportToCSV(exportData, '批次指派課程_' + selectedYear + '年度');
+            
+            // 顯示預覽提示
+            document.getElementById('batchAssignPreview').innerHTML = '<p style="color:var(--text-success);text-align:center;">✅ 已匯出！請編輯 CSV 後點「匯入指派」上傳<br><br>指派狀態填寫說明：<br>required = 指定必修<br>optional = 指定選修<br>excluded = 排除<br>空白 = 使用預設規則</p>';
+        }
+        
+        function showImportBatchAssignModal() {
+            document.getElementById('importBatchAssignFile').value = '';
+            document.getElementById('importBatchAssignPreview').style.display = 'none';
+            document.getElementById('btnExecuteImportBatchAssign').disabled = true;
+            window.importBatchAssignData = [];
+            window.importBatchAssignHeaders = [];
+            showModal('importBatchAssignModal');
+        }
+        
+        // 批次指派匯入檔案變更事件
+        document.addEventListener('DOMContentLoaded', function() {
+            var importBatchFile = document.getElementById('importBatchAssignFile');
+            if (importBatchFile) {
+                importBatchFile.addEventListener('change', function(e) {
+                    var file = e.target.files[0];
+                    if (!file) return;
+                    
+                    var reader = new FileReader();
+                    reader.onload = function(event) {
+                        var csv = event.target.result;
+                        var lines = csv.split('\n');
+                        var headers = lines[0].split(',').map(function(h) { return h.trim().replace(/"/g, ''); });
+                        
+                        window.importBatchAssignHeaders = headers;
+                        window.importBatchAssignData = [];
+                        for (var i = 1; i < lines.length; i++) {
+                            if (!lines[i].trim()) continue;
+                            var values = lines[i].split(',').map(function(v) { return v.trim().replace(/"/g, ''); });
+                            var row = {};
+                            headers.forEach(function(h, idx) { row[h] = values[idx] || ''; });
+                            window.importBatchAssignData.push(row);
+                        }
+                        
+                        // 顯示預覽（只顯示前幾欄）
+                        var previewHeaders = headers.slice(0, 5);
+                        if (headers.length > 5) previewHeaders.push('...');
+                        
+                        document.getElementById('importBatchAssignPreview').style.display = 'block';
+                        document.getElementById('importBatchAssignPreviewHead').innerHTML = '<tr>' + previewHeaders.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr>';
+                        document.getElementById('importBatchAssignPreviewBody').innerHTML = window.importBatchAssignData.slice(0, 5).map(function(row) {
+                            return '<tr>' + previewHeaders.map(function(h) { 
+                                if (h === '...') return '<td>...</td>';
+                                return '<td>' + (row[h] || '-') + '</td>'; 
+                            }).join('') + '</tr>';
+                        }).join('');
+                        document.getElementById('importBatchAssignPreviewCount').textContent = '共 ' + window.importBatchAssignData.length + ' 位員工，' + (headers.length - 3) + ' 門課程';
+                        document.getElementById('btnExecuteImportBatchAssign').disabled = false;
+                    };
+                    reader.readAsText(file);
+                });
+            }
+        });
+        
+        async function executeImportBatchAssign() {
+            var data = window.importBatchAssignData;
+            var headers = window.importBatchAssignHeaders;
+            
+            if (!data || data.length === 0) {
+                alert('沒有資料可匯入');
+                return;
+            }
+            
+            var selectedYear = parseInt(document.getElementById('batchAssignYearFilter').value);
+            
+            // 取得所有員工的編號對應 ID
+            var { data: allEmployees } = await supabase.from('employees').select('id, employee_id');
+            var empIdMap = {};
+            if (allEmployees) allEmployees.forEach(function(e) { empIdMap[e.employee_id] = e.id; });
+            
+            // 取得所有課程的名稱對應 ID
+            var { data: allCourses } = await supabase.from('courses').select('id, title').eq('course_year', selectedYear);
+            var courseIdMap = {};
+            if (allCourses) allCourses.forEach(function(c) { courseIdMap[c.title] = c.id; });
+            
+            // 課程欄位（排除前三欄：員工編號、員工姓名、部門）
+            var courseColumns = headers.slice(3);
+            
+            var successCount = 0;
+            var errorCount = 0;
+            var errorMessages = [];
+            
+            for (var i = 0; i < data.length; i++) {
+                var row = data[i];
+                var employeeCode = row['員工編號'];
+                var employeeId = empIdMap[employeeCode];
+                
+                if (!employeeId) {
+                    errorCount++;
+                    errorMessages.push('第 ' + (i+2) + ' 行：找不到員工編號 ' + employeeCode);
+                    continue;
+                }
+                
+                for (var j = 0; j < courseColumns.length; j++) {
+                    var courseTitle = courseColumns[j];
+                    var courseId = courseIdMap[courseTitle];
+                    var assignmentType = row[courseTitle];
+                    
+                    if (!courseId) continue; // 找不到課程，跳過
+                    
+                    // 驗證指派類型
+                    var validTypes = ['required', 'optional', 'excluded', ''];
+                    if (!validTypes.includes(assignmentType)) {
+                        errorCount++;
+                        errorMessages.push('第 ' + (i+2) + ' 行，課程「' + courseTitle + '」：無效的指派類型 ' + assignmentType);
+                        continue;
+                    }
+                    
+                    try {
+                        if (assignmentType === '') {
+                            // 空白 = 刪除指派（使用預設）
+                            await supabase.from('course_assignments').delete()
+                                .eq('employee_id', employeeId)
+                                .eq('course_id', courseId)
+                                .eq('assignment_year', selectedYear);
+                        } else {
+                            // 有值 = 新增或更新指派
+                            var { data: existing } = await supabase.from('course_assignments')
+                                .select('id')
+                                .eq('employee_id', employeeId)
+                                .eq('course_id', courseId)
+                                .eq('assignment_year', selectedYear)
+                                .single();
+                            
+                            if (existing) {
+                                await supabase.from('course_assignments')
+                                    .update({ assignment_type: assignmentType })
+                                    .eq('id', existing.id);
+                            } else {
+                                await supabase.from('course_assignments').insert({
+                                    employee_id: employeeId,
+                                    course_id: courseId,
+                                    assignment_year: selectedYear,
+                                    assignment_type: assignmentType
+                                });
+                            }
+                        }
+                        successCount++;
+                    } catch (err) {
+                        errorCount++;
+                        errorMessages.push('第 ' + (i+2) + ' 行，課程「' + courseTitle + '」：' + err.message);
+                    }
+                }
+            }
+            
+            var message = '匯入完成！\n成功：' + successCount + ' 筆\n失敗：' + errorCount + ' 筆';
+            if (errorMessages.length > 0) {
+                message += '\n\n錯誤訊息：\n' + errorMessages.slice(0, 5).join('\n');
+                if (errorMessages.length > 5) message += '\n...還有 ' + (errorMessages.length - 5) + ' 個錯誤';
+            }
+            alert(message);
+            closeModal('importBatchAssignModal');
+            closeModal('batchAssignModal');
         }
         
         function showAlert(containerId, message, type) {
