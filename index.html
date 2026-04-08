@@ -1379,7 +1379,7 @@
             }
             
             // 主管、老闆、管理者都可以看全公司
-            var query = supabase.from('employees').select('*, training_records(*), departments(name)').eq('is_active', true).neq('role', 'boss');
+            var query = supabase.from('employees_view').select('*, training_records(*), departments(name)').eq('is_active', true).neq('role', 'boss');
             
             // 如果有選擇特定部門，則篩選
             if (deptFilter) {
@@ -1537,7 +1537,7 @@
             var query = supabase.from('training_applications').select('*, employees(name), courses(title)').order('created_at', { ascending: false });
             // 主管只能看自己部門的申請，老闆和管理者可以看全部
             if (currentUser.role === 'manager') {
-                var { data: teamMembers } = await supabase.from('employees').select('id').eq('department_id', currentUser.department_id);
+                var { data: teamMembers } = await supabase.from('employees_view').select('id').eq('department_id', currentUser.department_id);
                 var teamIds = teamMembers ? teamMembers.map(function(m) { return m.id; }) : [];
                 if (teamIds.length > 0) query = query.in('employee_id', teamIds);
             }
@@ -1563,7 +1563,7 @@
         }
 
         async function loadEmployees() {
-            var { data } = await supabase.from('employees').select('*, departments(name)').order('employee_id');
+            var { data } = await supabase.from('employees_view').select('*, departments(name)').order('employee_id');
             window.allEmployees = data; // 儲存到全域變數供篩選用
             renderEmployees(data);
         }
@@ -1598,7 +1598,7 @@
 
         async function loadDepartmentsTable() {
             var { data } = await supabase.from('departments').select('*').order('name');
-            var { data: empCounts } = await supabase.from('employees').select('department_id').eq('is_active', true);
+            var { data: empCounts } = await supabase.from('employees_view').select('department_id').eq('is_active', true);
             var countMap = {};
             if (empCounts) empCounts.forEach(function(e) { countMap[e.department_id] = (countMap[e.department_id] || 0) + 1; });
             var tbody = document.getElementById('departmentsTable');
@@ -1879,7 +1879,7 @@
         }
 
         async function editEmployee(id) {
-            var { data } = await supabase.from('employees').select('*').eq('id', id).single();
+            var { data } = await supabase.from('employees_view').select('*').eq('id', id).single();
             if (data) {
                 document.getElementById('employeeModalTitle').textContent = '編輯員工';
                 document.getElementById('employeeEditId').value = data.id;
@@ -2036,7 +2036,7 @@
             var empId = document.getElementById('forgotEmpId').value;
             var email = document.getElementById('forgotEmail').value;
             try {
-                var { data, error } = await supabase.from('employees').select('*').eq('employee_id', empId).eq('email', email).eq('is_active', true).single();
+                var { data, error } = await supabase.from('employees_view').select('*').eq('employee_id', empId).eq('email', email).eq('is_active', true).single();
                 if (error || !data) { alert('找不到符合的帳號，請確認員工編號和 Email 是否正確。'); return; }
                 var defaultPassword = empId + '123';
                 var { error: updateError } = await supabase.from('employees').update({ password_hash: defaultPassword, must_change_password: true }).eq('id', data.id);
@@ -2256,7 +2256,7 @@
             var data, filename;
             switch(type) {
                 case 'employees':
-                    var { data: empData } = await supabase.from('employees').select('*, departments(name)');
+                    var { data: empData } = await supabase.from('employees_view').select('*, departments(name)');
                     data = empData ? empData.map(function(e) { return { 員工編號: e.employee_id, 姓名: e.name, Email: e.email, 部門: e.departments ? e.departments.name : '', 角色: e.role, 到職日期: e.hire_date, 狀態: e.is_active ? '啟用' : '停用' }; }) : [];
                     filename = '員工資料'; break;
                 case 'courses':
@@ -2278,7 +2278,7 @@
         
         // 匯出全員工清單
         async function exportAllEmployeeList() {
-            var { data: employees } = await supabase.from('employees').select('*, departments(name)').eq('is_active', true).order('employee_id');
+            var { data: employees } = await supabase.from('employees_view').select('*, departments(name)').eq('is_active', true).order('employee_id');
             if (!employees || employees.length === 0) {
                 alert('沒有員工資料');
                 return;
@@ -2310,7 +2310,7 @@
             var categoryName = course.course_categories ? course.course_categories.name : '一般訓練';
             
             // 取得所有啟用的員工
-            var { data: allEmployees } = await supabase.from('employees').select('*, departments(name)').eq('is_active', true).order('employee_id');
+            var { data: allEmployees } = await supabase.from('employees_view').select('*, departments(name)').eq('is_active', true).order('employee_id');
             
             // 取得已被指派此課程的員工
             var { data: assignments } = await supabase.from('course_assignments').select('employee_id, assignment_type').eq('course_id', courseId);
@@ -2431,7 +2431,7 @@
             }
             
             // 取得所有員工的編號對應 ID
-            var { data: allEmployees } = await supabase.from('employees').select('id, employee_id');
+            var { data: allEmployees } = await supabase.from('employees_view').select('id, employee_id');
             var empIdMap = {};
             if (allEmployees) allEmployees.forEach(function(e) { empIdMap[e.employee_id] = e.id; });
             
@@ -2626,7 +2626,7 @@
             var categoryName = course.course_categories ? course.course_categories.name : '一般訓練';
             
             // 取得所有啟用的員工
-            var { data: fetchedEmployees } = await supabase.from('employees').select('*, departments(name)').eq('is_active', true).order('name');
+            var { data: fetchedEmployees } = await supabase.from('employees_view').select('*, departments(name)').eq('is_active', true).order('name');
             var allEmployees = fetchedEmployees || [];
             window.attendanceAllEmployees = allEmployees; // 儲存到全域變數
             
@@ -2843,7 +2843,7 @@
             var selectedYear = getSelectedYear('assignYearFilter');
             
             // 取得員工資料
-            var { data: emp } = await supabase.from('employees').select('*').eq('id', employeeId).single();
+            var { data: emp } = await supabase.from('employees_view').select('*').eq('id', employeeId).single();
             
             // 取得該年度的課程
             var { data: courses } = await supabase.from('courses').select('*, course_categories(name)').eq('is_active', true).eq('course_year', selectedYear).order('title');
@@ -3022,7 +3022,7 @@
             var selectedYear = parseInt(document.getElementById('batchAssignYearFilter').value);
             
             // 取得所有啟用的員工
-            var { data: employees } = await supabase.from('employees').select('*, departments(name)').eq('is_active', true).neq('role', 'boss').order('employee_id');
+            var { data: employees } = await supabase.from('employees_view').select('*, departments(name)').eq('is_active', true).neq('role', 'boss').order('employee_id');
             if (!employees || employees.length === 0) {
                 alert('沒有員工資料');
                 return;
@@ -3134,7 +3134,7 @@
             var selectedYear = parseInt(document.getElementById('batchAssignYearFilter').value);
             
             // 取得所有員工的編號對應 ID
-            var { data: allEmployees } = await supabase.from('employees').select('id, employee_id');
+            var { data: allEmployees } = await supabase.from('employees_view').select('id, employee_id');
             var empIdMap = {};
             if (allEmployees) allEmployees.forEach(function(e) { empIdMap[e.employee_id] = e.id; });
             
