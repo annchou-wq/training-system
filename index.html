@@ -709,9 +709,10 @@
         var categories = [];
 
         // 初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            var savedUser = localStorage.getItem('currentUser');
-            if (savedUser) { currentUser = JSON.parse(savedUser); showDashboard(); }
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 檢查 Supabase Auth session
+            await checkSession();
+            
             document.getElementById('loginForm').addEventListener('submit', handleLogin);
             document.querySelectorAll('.nav-menu a').forEach(function(link) {
                 link.addEventListener('click', function(e) { e.preventDefault(); navigateTo(link.dataset.page); });
@@ -727,31 +728,125 @@
             document.getElementById('forgotPasswordForm').addEventListener('submit', handleForgotPassword);
             document.getElementById('forceChangePasswordForm').addEventListener('submit', handleForceChangePassword);
             document.getElementById('updateRecordForm').addEventListener('submit', handleUpdateRecord);
+            
+            // 監聽登入狀態變化
+            supabase.auth.onAuthStateChange(async function(event, session) {
+                if (event === 'SIGNED_OUT') {
+                    currentUser = null;
+                    document.getElementById('loginPage').style.display = 'flex';
+                    document.getElementById('dashboard').style.display = 'none';
+                }
+            });
         });
+        
+        // 檢查登入狀態
+        async function checkSession() {
+            try {
+                var { data: { session } } = await supabase.auth.getSession();
+                
+                if (session) {
+                    var { data: employee } = await supabase
+                        .from('employees')
+                        .select('*, departments(name)')
+                        .eq('user_id', session.user.id)
+                        .eq('is_active', true)
+                        .single();
+                    
+                    if (employee) {
+                        currentUser = employee;
+                        showDashboard();
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.log('Session check error:', err);
+            }
+            // 沒有有效 session，顯示登入頁
+            document.getElementById('loginPage').style.display = 'flex';
+        }
 
         // 登入
         async function handleLogin(e) {
             e.preventDefault();
-            var loginId = document.getElementById('loginId').value;
+            var loginId = document.getElementById('loginId').value.trim();
             var password = document.getElementById('loginPassword').value;
+            
             try {
-                var { data, error } = await supabase.from('employees').select('*, departments(name)')
-                    .or('employee_id.eq.' + loginId + ',email.eq.' + loginId)
-                    .eq('password_hash', password).eq('is_active', true).single();
-                if (error || !data) { showAlert('loginAlert', '登入失敗：帳號或密碼錯誤', 'danger'); return; }
-                currentUser = data;
-                localStorage.setItem('currentUser', JSON.stringify(data));
-                if (currentUser.must_change_password) {
-                    document.getElementById('loginPage').style.display = 'none';
-                    document.getElementById('dashboard').style.display = 'block';
-                    showModal('forceChangePasswordModal');
-                } else { showDashboard(); }
-            } catch (err) { showAlert('loginAlert', '登入失敗：' + err.message, 'danger'); }
+                // 如果輸入的不是 email 格式，先查詢對應的 email
+                var email = loginId;
+                if (!loginId.includes('@')) {
+                    var { data: emp, error: empError } = await supabase
+                        .from('employees')
+                        .select('email')
+                        .eq('employee_id', loginId)
+                        .eq('is_active', true)
+                        .single();
+                    
+                    if (empError || !emp) {
+                        showAlert('loginAlert', '登入失敗：找不到此員工編號', 'danger');
+                        return;
+                    }
+                    email = emp.email;
+                }
+                
+                // 使用 Supabase Auth 登入
+                var { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+                
+                if (authError) {
+                    // 如果 Supabase Auth 登入失敗，嘗試舊的登入方式（過渡期使用）
+                    var { data: oldUser, error: oldError } = await supabase.from('employees').select('*, departments(name)')
+                        .or('employee_id.eq.' + loginId + ',email.eq.' + loginId)
+                        .eq('password_hash', password).eq('is_active', true).single();
+                    
+                    if (oldError || !oldUser) {
+                        showAlert('loginAlert', '登入失敗：帳號或密碼錯誤', 'danger');
+                        return;
+                    }
+                    
+                    // 舊方式登入成功，提示用戶需要遷移帳號
+                    currentUser = oldUser;
+                    if (oldUser.must_change_password || !oldUser.user_id) {
+                        document.getElementById('loginPage').style.display = 'none';
+                        document.getElementById('dashboard').style.display = 'block';
+                        showModal('forceChangePasswordModal');
+                    } else {
+                        showDashboard();
+                    }
+                    return;
+                }
+                
+                // Supabase Auth 登入成功，取得員工資料
+                var { data: employee, error: empFetchError } = await supabase
+                    .from('employees')
+                    .select('*, departments(name)')
+                    .eq('user_id', authData.user.id)
+                    .eq('is_active', true)
+                    .single();
+                
+                if (empFetchError || !employee) {
+                    await supabase.auth.signOut();
+                    showAlert('loginAlert', '找不到對應的員工帳號，請聯繫管理員', 'danger');
+                    return;
+                }
+                
+                currentUser = employee;
+                showDashboard();
+                
+            } catch (err) {
+                showAlert('loginAlert', '登入失敗：' + err.message, 'danger');
+            }
         }
 
-        function logout() {
+        async function logout() {
+            try {
+                await supabase.auth.signOut();
+            } catch (err) {
+                console.log('Logout error:', err);
+            }
             currentUser = null;
-            localStorage.removeItem('currentUser');
             document.getElementById('loginPage').style.display = 'flex';
             document.getElementById('dashboard').style.display = 'none';
             document.getElementById('loginForm').reset();
@@ -1984,34 +2079,139 @@
             e.preventDefault();
             var empId = document.getElementById('forgotEmpId').value;
             var email = document.getElementById('forgotEmail').value;
+            
             try {
-                var { data, error } = await supabase.from('employees').select('*').eq('employee_id', empId).eq('email', email).eq('is_active', true).single();
-                if (error || !data) { alert('找不到符合的帳號，請確認員工編號和 Email 是否正確。'); return; }
-                var defaultPassword = empId + '123';
-                var { error: updateError } = await supabase.from('employees').update({ password_hash: defaultPassword, must_change_password: true }).eq('id', data.id);
-                if (updateError) throw updateError;
-                alert('密碼已重設！\n\n您的新密碼是：' + defaultPassword + '\n\n請使用新密碼登入，系統會要求您設定新密碼。');
+                // 先驗證員工編號和 Email 是否匹配
+                var { data, error } = await supabase.from('employees')
+                    .select('id, user_id')
+                    .eq('employee_id', empId)
+                    .eq('email', email)
+                    .eq('is_active', true)
+                    .single();
+                
+                if (error || !data) {
+                    alert('找不到符合的帳號，請確認員工編號和 Email 是否正確。');
+                    return;
+                }
+                
+                // 如果員工已經遷移到 Supabase Auth
+                if (data.user_id) {
+                    // 發送密碼重設郵件
+                    var { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+                        redirectTo: window.location.origin + window.location.pathname
+                    });
+                    
+                    if (resetError) {
+                        alert('發送重設郵件失敗：' + resetError.message);
+                        return;
+                    }
+                    
+                    alert('密碼重設連結已發送到您的信箱！\n\n請檢查您的 Email（' + email + '）並點擊連結重設密碼。');
+                } else {
+                    // 舊用戶，使用原本的重設方式
+                    var defaultPassword = empId + '123';
+                    var { error: updateError } = await supabase.from('employees')
+                        .update({ password_hash: defaultPassword, must_change_password: true })
+                        .eq('id', data.id);
+                    
+                    if (updateError) throw updateError;
+                    
+                    alert('密碼已重設！\n\n您的新密碼是：' + defaultPassword + '\n\n請使用新密碼登入，系統會要求您設定新密碼。');
+                }
+                
                 closeModal('forgotPasswordModal');
-            } catch (err) { alert('重設密碼失敗：' + err.message); }
+            } catch (err) {
+                alert('重設密碼失敗：' + err.message);
+            }
         }
 
         async function handleForceChangePassword(e) {
             e.preventDefault();
             var newPwd = document.getElementById('forceNewPassword').value;
             var confirmPwd = document.getElementById('forceConfirmPassword').value;
-            if (newPwd !== confirmPwd) { alert('新密碼與確認密碼不一致！'); return; }
+            
+            if (newPwd !== confirmPwd) {
+                alert('新密碼與確認密碼不一致！');
+                return;
+            }
+            
             var pwdRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/;
-            if (!pwdRegex.test(newPwd)) { alert('密碼需至少6碼，且包含大寫、小寫字母及數字'); return; }
+            if (!pwdRegex.test(newPwd)) {
+                alert('密碼需至少6碼，且包含大寫、小寫字母及數字');
+                return;
+            }
+            
             try {
-                var { error } = await supabase.from('employees').update({ password_hash: newPwd, must_change_password: false }).eq('id', currentUser.id);
-                if (error) throw error;
-                currentUser.password_hash = newPwd;
+                // 檢查是否已有 Supabase Auth 帳號
+                var { data: { session } } = await supabase.auth.getSession();
+                
+                if (session) {
+                    // 已經是 Supabase Auth 用戶，更新密碼
+                    var { error: updateAuthError } = await supabase.auth.updateUser({
+                        password: newPwd
+                    });
+                    
+                    if (updateAuthError) throw updateAuthError;
+                    
+                    // 更新 employees 表
+                    await supabase.from('employees')
+                        .update({ must_change_password: false })
+                        .eq('id', currentUser.id);
+                    
+                } else if (currentUser && !currentUser.user_id) {
+                    // 舊用戶，需要遷移到 Supabase Auth
+                    // 1. 建立 Supabase Auth 帳號
+                    var { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                        email: currentUser.email,
+                        password: newPwd
+                    });
+                    
+                    if (signUpError) {
+                        // 如果帳號已存在，嘗試登入
+                        if (signUpError.message.includes('already registered')) {
+                            alert('此 Email 已有帳號，請直接使用新密碼登入。如果忘記密碼，請使用「忘記密碼」功能。');
+                            closeModal('forceChangePasswordModal');
+                            logout();
+                            return;
+                        }
+                        throw signUpError;
+                    }
+                    
+                    // 2. 更新 employees 表，關聯 user_id
+                    if (signUpData.user) {
+                        var { error: linkError } = await supabase.from('employees')
+                            .update({ 
+                                user_id: signUpData.user.id,
+                                must_change_password: false 
+                            })
+                            .eq('id', currentUser.id);
+                        
+                        if (linkError) throw linkError;
+                        
+                        currentUser.user_id = signUpData.user.id;
+                    }
+                    
+                    alert('帳號已升級為安全認證！\n\n您的帳號已遷移至更安全的認證系統。\n請使用新密碼重新登入。');
+                    closeModal('forceChangePasswordModal');
+                    await logout();
+                    return;
+                    
+                } else {
+                    // 舊方式：直接更新 password_hash
+                    var { error } = await supabase.from('employees')
+                        .update({ password_hash: newPwd, must_change_password: false })
+                        .eq('id', currentUser.id);
+                    if (error) throw error;
+                }
+                
                 currentUser.must_change_password = false;
-                localStorage.setItem('currentUser', JSON.stringify(currentUser));
                 alert('密碼設定成功！');
                 closeModal('forceChangePasswordModal');
                 showDashboard();
-            } catch (err) { alert('密碼設定失敗：' + err.message); }
+                
+            } catch (err) {
+                alert('密碼設定失敗：' + err.message);
+            }
         }
 
         async function handleEmployeeSubmit(e) {
@@ -2027,13 +2227,67 @@
                 is_newcomer: document.getElementById('empNewcomer').checked
             };
             var password = document.getElementById('empPassword').value;
-            if (password) { employeeData.password_hash = password; employeeData.must_change_password = true; }
+            
             try {
-                if (editId) { await supabase.from('employees').update(employeeData).eq('id', editId); }
-                else { await supabase.from('employees').insert(employeeData); }
+                if (editId) {
+                    // 編輯現有員工
+                    if (password) {
+                        // 如果有設定新密碼，也更新到舊欄位（相容性）
+                        employeeData.password_hash = password;
+                        employeeData.must_change_password = true;
+                    }
+                    await supabase.from('employees').update(employeeData).eq('id', editId);
+                } else {
+                    // 新增員工
+                    if (!password) {
+                        alert('新增員工時必須設定密碼');
+                        return;
+                    }
+                    
+                    // 先在 employees 表建立資料
+                    employeeData.password_hash = password;
+                    employeeData.must_change_password = true;
+                    employeeData.is_active = true;
+                    
+                    var { data: newEmp, error: insertError } = await supabase
+                        .from('employees')
+                        .insert(employeeData)
+                        .select()
+                        .single();
+                    
+                    if (insertError) throw insertError;
+                    
+                    // 嘗試建立 Supabase Auth 帳號
+                    try {
+                        var { data: authData, error: authError } = await supabase.auth.admin
+                            ? await supabase.auth.admin.createUser({
+                                email: employeeData.email,
+                                password: password,
+                                email_confirm: true
+                            })
+                            : await supabase.auth.signUp({
+                                email: employeeData.email,
+                                password: password
+                            });
+                        
+                        if (!authError && authData && authData.user) {
+                            // 關聯 user_id
+                            await supabase.from('employees')
+                                .update({ user_id: authData.user.id })
+                                .eq('id', newEmp.id);
+                        }
+                    } catch (authErr) {
+                        console.log('Auth account creation skipped:', authErr);
+                        // Auth 帳號建立失敗不影響員工建立，用戶首次登入時會自動遷移
+                    }
+                }
+                
                 closeModal('employeeModal');
                 loadEmployees();
-            } catch (err) { alert('儲存失敗：' + err.message); }
+                
+            } catch (err) {
+                alert('儲存失敗：' + err.message);
+            }
         }
 
         async function handleDepartmentSubmit(e) {
